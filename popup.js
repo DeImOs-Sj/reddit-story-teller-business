@@ -27,7 +27,12 @@ VOICE — write exactly like this:
 - natural filler (just, actually, honestly, as well, what if) and real contractions
 - flowing prose, not chopped lines or a list
 
-LENGTH: 1 to 2 short paragraphs max. tight. output ONLY the post or comment text — no preamble, no quotes, no labels, no markdown, no line-break lists.`;
+LENGTH: 1 to 2 short paragraphs max. tight.
+
+OUTPUT FORMAT:
+- for a FRESH POST: first line must be "TITLE: <a short scroll-stopping title that sounds like a real curious person, lowercase, no clickbait caps, fits the same hook vibe>". then a blank line, then the post body. nothing else.
+- for a COMMENT REPLY: NO title line. just output the reply body directly.
+- no quotes, no extra labels, no markdown, no line-break lists.`;
 
 // the user's own gold-standard example, re-pointed to a hook ending — few-shot to lock voice
 const FEWSHOT_USER = `write a fresh hook post in the storytelling style. ending hook: float making it live (option b).
@@ -35,7 +40,9 @@ const FEWSHOT_USER = `write a fresh hook post in the storytelling style. ending 
 my product / what to write about:
 """a cheap diy AEO/traffic tool — a few scripts on a $5 vps — that gets dead low-traffic sites from ~12 visitors to 30-40 visitors a month. competitors charge $50-100/mo for what's basically $1-2 of work."""`;
 
-const FEWSHOT_ASSISTANT = `last time when i was trying to get traffic to one of our dead sites i was paying 75$ a month for a tool that barely moved the needle, and honestly it felt like throwing money down a drain while the site stayed stuck at like 12 visitors. i looked at all the other options and they either wanted a subscription for features i didnt need or charged per query like it was some luxury service, which made no sense for a small operation where every dollar counts. then i kind of just hacked together my own thing, a few scripts running on a cheap vps, and now those same sites pull 30-40 visitors for under 5$ a month, no fuss, no hidden fees. honestly ive been wondering if i should clean it up and put it online so other people could use it too — would anyone here actually be interested in something like that, or do you all already have some cheap setup that works?`;
+const FEWSHOT_ASSISTANT = `TITLE: paying 75$/mo to barely move a dead site, finally just built my own thing
+
+last time when i was trying to get traffic to one of our dead sites i was paying 75$ a month for a tool that barely moved the needle, and honestly it felt like throwing money down a drain while the site stayed stuck at like 12 visitors. i looked at all the other options and they either wanted a subscription for features i didnt need or charged per query like it was some luxury service, which made no sense for a small operation where every dollar counts. then i kind of just hacked together my own thing, a few scripts running on a cheap vps, and now those same sites pull 30-40 visitors for under 5$ a month, no fuss, no hidden fees. honestly ive been wondering if i should clean it up and put it online so other people could use it too — would anyone here actually be interested in something like that, or do you all already have some cheap setup that works?`;
 
 const HOOK_INSTRUCTIONS = {
   auto: "ending hook: pick whichever of the two hooks fits best.",
@@ -53,6 +60,9 @@ const commentField = $("comment-field");
 const outputEl = $("output");
 const outputWrap = $("output-wrap");
 const copyBtn = $("copy");
+const titleEl = $("title-out");
+const titleWrap = $("title-wrap");
+const copyTitleBtn = $("copy-title");
 const genBtn = $("generate");
 const statusEl = $("status");
 
@@ -105,6 +115,13 @@ function clean(text) {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
+// split a "TITLE: ...\n\n<body>" response into { title, body }
+function parseOutput(text) {
+  const m = text.match(/^\s*TITLE:\s*(.+?)\s*\n([\s\S]*)$/i);
+  if (m) return { title: m[1].trim(), body: m[2].trim() };
+  return { title: "", body: text };
+}
+
 genBtn.addEventListener("click", async () => {
   const product = productEl.value.trim();
   if (!product) { setStatus("fill in the product field first", true); return; }
@@ -117,6 +134,8 @@ genBtn.addEventListener("click", async () => {
   setStatus("writing...");
   outputWrap.hidden = true;
   copyBtn.hidden = true;
+  titleWrap.hidden = true;
+  copyTitleBtn.hidden = true;
 
   try {
     const res = await fetch(ENDPOINT, {
@@ -150,7 +169,15 @@ genBtn.addEventListener("click", async () => {
     const text = clean(data?.choices?.[0]?.message?.content || "");
     if (!text) throw new Error("empty response from model");
 
-    outputEl.value = text;
+    const { title, body } = parseOutput(text);
+
+    if (title) {
+      titleEl.value = title;
+      titleWrap.hidden = false;
+      copyTitleBtn.hidden = false;
+    }
+
+    outputEl.value = body;
     outputWrap.hidden = false;
     copyBtn.hidden = false;
     setStatus("");
@@ -164,5 +191,11 @@ genBtn.addEventListener("click", async () => {
 copyBtn.addEventListener("click", async () => {
   await navigator.clipboard.writeText(outputEl.value);
   copyBtn.textContent = "copied";
-  setTimeout(() => (copyBtn.textContent = "copy"), 1200);
+  setTimeout(() => (copyBtn.textContent = "copy post"), 1200);
+});
+
+copyTitleBtn.addEventListener("click", async () => {
+  await navigator.clipboard.writeText(titleEl.value);
+  copyTitleBtn.textContent = "copied";
+  setTimeout(() => (copyTitleBtn.textContent = "copy title"), 1200);
 });
