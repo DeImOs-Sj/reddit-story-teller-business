@@ -7,65 +7,88 @@
   <title>Story Pitch Writer</title>
 </head>
 <body>
-  <header>
-    <h1>story pitch writer</h1>
-    <div class="tabs">
-      <button id="tab-post" class="tab active" data-mode="post">new post</button>
-      <button id="tab-comment" class="tab" data-mode="comment">reply to comment</button>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">✍️</span>
+      <span class="brand-name">story pitch</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-mode="post" role="tab">new post</button>
+      <button class="tab" data-mode="comment" role="tab">reply</button>
     </div>
   </header>
 
   <main>
-    <label class="field">
-      <span>your product / what you're selling</span>
-      <textarea id="product" rows="3" placeholder="e.g. P — a cheap alternative to [X] that does ... for $Y instead of $Z"></textarea>
-    </label>
+    <div class="field">
+      <div class="field-label">
+        <span>your product / what you're selling</span>
+        <span class="hint" id="product-hint"></span>
+      </div>
+      <textarea id="product" rows="3" placeholder="e.g. a cheap diy tool that does X for $5 instead of the $50/mo others charge"></textarea>
+    </div>
 
-    <label class="field" id="comment-field" hidden>
-      <span>the comment you're replying to</span>
+    <div class="field" id="comment-field" hidden>
+      <div class="field-label"><span>the comment you're replying to</span></div>
       <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
-    </label>
+      <label class="check" id="comment-promo-wrap">
+        <input type="checkbox" id="comment-promo" />
+        <span>weave my product in <em>(off = genuine reply, no promo)</em></span>
+      </label>
+    </div>
 
-    <label class="check" id="comment-promo-wrap" hidden>
-      <input type="checkbox" id="comment-promo" />
-      <span>weave my product in (off = just a genuine reply, no promo)</span>
-    </label>
+    <div id="promo-opts">
+      <div class="field">
+        <div class="field-label"><span>ending hook</span></div>
+        <select id="hook">
+          <option value="auto">auto — let it pick</option>
+          <option value="alts">ask for cheaper alternatives</option>
+          <option value="launch">float making it live (anyone interested?)</option>
+        </select>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="stealth" checked />
+        <span>stealth mode <em>— avoid self-promo flags (strict subs)</em></span>
+      </label>
+    </div>
 
-    <label class="field">
-      <span>ending hook</span>
-      <select id="hook">
-        <option value="auto">auto — let it pick</option>
-        <option value="alts">ask for cheaper alternatives</option>
-        <option value="launch">float making it live (anyone interested?)</option>
-      </select>
-    </label>
-
-    <label class="check">
-      <input type="checkbox" id="stealth" checked />
-      <span>stealth mode — avoid self-promo flags (strict subs)</span>
-    </label>
-
-    <button id="generate">generate</button>
+    <button id="generate" class="btn-primary">
+      <span class="spinner"></span>
+      <span class="btn-label">generate</span>
+      <kbd>⌘↵</kbd>
+    </button>
 
     <div id="status" class="status" hidden></div>
 
-    <label class="field" id="title-wrap" hidden>
-      <span>suggested title</span>
-      <textarea id="title-out" rows="2" readonly></textarea>
-    </label>
-    <button id="copy-title" hidden>copy title</button>
+    <section id="result" class="result" hidden>
+      <div class="result-head">
+        <span class="result-title">result</span>
+        <button id="regen" class="icon-btn" title="regenerate">↻ regenerate</button>
+      </div>
 
-    <label class="field" id="output-wrap" hidden>
-      <span>post</span>
-      <textarea id="output" rows="8" readonly></textarea>
-    </label>
-    <button id="copy" hidden>copy post</button>
+      <div class="block" id="title-block" hidden>
+        <div class="block-head">
+          <span>suggested title</span>
+          <button id="copy-title" class="mini-btn">copy</button>
+        </div>
+        <textarea id="title-out" class="readonly" rows="2" readonly></textarea>
+      </div>
 
-    <label class="field" id="speed-wrap" hidden>
-      <span>typing speed (ms per word) — <b id="speed-val">45</b></span>
-      <input type="range" id="speed" min="0" max="200" step="5" value="45" />
-    </label>
-    <button id="type-btn" hidden>⌨ type into reddit box</button>
+      <div class="block">
+        <div class="block-head">
+          <span id="body-label">post</span>
+          <button id="copy" class="mini-btn">copy</button>
+        </div>
+        <textarea id="output" class="readonly" rows="7" readonly></textarea>
+      </div>
+
+      <div class="block" id="type-block">
+        <div class="block-head">
+          <span>typing speed · <b id="speed-val">3</b> <em class="muted">(1 fast – 10 slow)</em></span>
+        </div>
+        <input type="range" id="speed" min="1" max="10" step="1" value="3" />
+        <button id="type-btn" class="btn-type">⌨ type into reddit box</button>
+      </div>
+    </section>
   </main>
 
   <script src="popup.js"></script>

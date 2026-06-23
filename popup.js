@@ -79,145 +79,214 @@ HARD BANS:
 - no links, no urls, no "@", no brand names.
 - no title line. output ONLY the reply text — no quotes, no labels, no markdown.`;
 
-let mode = "post";
-
+// ---------- dom refs ----------
 const $ = (id) => document.getElementById(id);
-const productEl = $("product");
-const hookEl = $("hook");
-const stealthEl = $("stealth");
-const commentEl = $("comment");
-const commentField = $("comment-field");
-const commentPromoEl = $("comment-promo");
-const commentPromoWrap = $("comment-promo-wrap");
-const outputEl = $("output");
-const outputWrap = $("output-wrap");
-const copyBtn = $("copy");
-const titleEl = $("title-out");
-const titleWrap = $("title-wrap");
-const copyTitleBtn = $("copy-title");
-const genBtn = $("generate");
-const statusEl = $("status");
-const typeBtn = $("type-btn");
-const speedEl = $("speed");
-const speedValEl = $("speed-val");
-const speedWrap = $("speed-wrap");
+const el = {
+  product: $("product"),
+  comment: $("comment"),
+  commentField: $("comment-field"),
+  commentPromo: $("comment-promo"),
+  hook: $("hook"),
+  stealth: $("stealth"),
+  promoOpts: $("promo-opts"),
+  generate: $("generate"),
+  genLabel: $("generate").querySelector(".btn-label"),
+  status: $("status"),
+  result: $("result"),
+  titleBlock: $("title-block"),
+  titleOut: $("title-out"),
+  copyTitle: $("copy-title"),
+  output: $("output"),
+  copy: $("copy"),
+  bodyLabel: $("body-label"),
+  regen: $("regen"),
+  typeBtn: $("type-btn"),
+  speed: $("speed"),
+  speedVal: $("speed-val"),
+  tabs: Array.from(document.querySelectorAll(".tab")),
+};
 
-// restore saved product text
-chrome.storage.local.get(["product"], (r) => {
-  if (r.product) productEl.value = r.product;
-});
-productEl.addEventListener("input", () => {
-  chrome.storage.local.set({ product: productEl.value });
-});
+// ---------- state ----------
+const state = { mode: "post", loading: false, result: null };
+let abortCtrl = null;
+let statusTimer = null;
 
-// tab switching
-document.querySelectorAll(".tab").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    mode = btn.dataset.mode;
-    document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    commentField.hidden = mode !== "comment";
-    commentPromoWrap.hidden = mode !== "comment";
+const PERSIST_KEYS = [
+  "product", "comment", "hook", "stealth", "commentPromo", "speed", "mode", "result",
+];
+
+function persist() {
+  chrome.storage.local.set({
+    product: el.product.value,
+    comment: el.comment.value,
+    hook: el.hook.value,
+    stealth: el.stealth.checked,
+    commentPromo: el.commentPromo.checked,
+    speed: el.speed.value,
+    mode: state.mode,
+    result: state.result,
   });
-});
-
-function setStatus(msg, isError = false) {
-  if (!msg) { statusEl.hidden = true; return; }
-  statusEl.hidden = false;
-  statusEl.textContent = msg;
-  statusEl.classList.toggle("error", isError);
 }
 
-// build the full messages array for the chat completion, branching on mode
-function buildMessages() {
-  const product = productEl.value.trim();
-  const hook = HOOK_INSTRUCTIONS[hookEl.value] || HOOK_INSTRUCTIONS.auto;
-  const stealth = stealthEl.checked ? STEALTH_RULES : "";
+function restore() {
+  chrome.storage.local.get(PERSIST_KEYS, (r) => {
+    if (r.product) el.product.value = r.product;
+    if (r.comment) el.comment.value = r.comment;
+    if (r.hook) el.hook.value = r.hook;
+    el.stealth.checked = r.stealth ?? true;
+    el.commentPromo.checked = r.commentPromo ?? false;
+    if (r.speed) el.speed.value = r.speed;
+    state.mode = r.mode === "comment" ? "comment" : "post";
+    state.result = r.result || null;
+    el.speedVal.textContent = el.speed.value;
+    autoGrow(el.product);
+    autoGrow(el.comment);
+    renderMode();
+    renderResult();
+  });
+}
 
-  // plain comment reply — genuine, no product, no promo
-  if (mode === "comment" && !commentPromoEl.checked) {
-    const comment = commentEl.value.trim();
+// ---------- helpers ----------
+function autoGrow(t) {
+  t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight, 240) + "px";
+}
+
+function setStatus(msg, kind = "info") {
+  clearTimeout(statusTimer);
+  if (!msg) { el.status.hidden = true; el.status.textContent = ""; return; }
+  el.status.hidden = false;
+  el.status.textContent = msg;
+  el.status.className = "status " + (kind === "info" ? "" : kind);
+  if (kind === "success") {
+    statusTimer = setTimeout(() => setStatus(""), 2500);
+  }
+}
+
+function flashBtn(btn, doneText) {
+  const orig = btn.textContent;
+  btn.textContent = doneText;
+  btn.classList.add("done");
+  setTimeout(() => { btn.textContent = orig; btn.classList.remove("done"); }, 1200);
+}
+
+function plainReplyMode() {
+  return state.mode === "comment" && !el.commentPromo.checked;
+}
+
+// ---------- render ----------
+function renderMode() {
+  el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.mode === state.mode));
+  const isComment = state.mode === "comment";
+  el.commentField.hidden = !isComment;
+  // hook + stealth only matter when we're actually promoting
+  el.promoOpts.hidden = plainReplyMode();
+  el.bodyLabel.textContent = isComment ? "reply" : "post";
+}
+
+function renderLoading() {
+  el.generate.classList.toggle("loading", state.loading);
+  el.genLabel.textContent = state.loading ? "stop" : "generate";
+}
+
+function renderResult() {
+  if (!state.result) { el.result.hidden = true; return; }
+  const { title, body } = state.result;
+  el.result.hidden = false;
+
+  if (title) {
+    el.titleBlock.hidden = false;
+    el.titleOut.value = title;
+    autoGrow(el.titleOut);
+  } else {
+    el.titleBlock.hidden = true;
+  }
+  el.output.value = body;
+  autoGrow(el.output);
+}
+
+// ---------- message building ----------
+function buildMessages() {
+  const product = el.product.value.trim();
+  const hook = HOOK_INSTRUCTIONS[el.hook.value] || HOOK_INSTRUCTIONS.auto;
+  const stealth = el.stealth.checked ? STEALTH_RULES : "";
+  const comment = el.comment.value.trim();
+
+  if (plainReplyMode()) {
     return [
       { role: "system", content: REPLY_PROMPT },
-      {
-        role: "user",
-        content: `reply to this reddit comment in a genuine casual human voice. just react to it, no promotion, no product, no links.
+      { role: "user", content: `reply to this reddit comment in a genuine casual human voice. just react to it, no promotion, no product, no links.
 
 the comment i'm replying to:
-"""${comment}"""`,
-      },
+"""${comment}"""` },
     ];
   }
 
-  // promo comment reply — weave the story in softly
-  if (mode === "comment") {
-    const comment = commentEl.value.trim();
+  if (state.mode === "comment") {
     return [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: FEWSHOT_USER },
       { role: "assistant", content: FEWSHOT_ASSISTANT },
-      {
-        role: "user",
-        content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
+      { role: "user", content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
 
 the comment i'm replying to:
 """${comment}"""
 
 my product / context:
-"""${product}"""`,
-      },
+"""${product}"""` },
     ];
   }
 
-  // fresh hook post
   return [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: FEWSHOT_USER },
     { role: "assistant", content: FEWSHOT_ASSISTANT },
-    {
-      role: "user",
-      content: `write a fresh hook post in the storytelling style. ${hook}${stealth}
+    { role: "user", content: `write a fresh hook post in the storytelling style. ${hook}${stealth}
 
 my product / what to write about:
-"""${product}"""`,
-    },
+"""${product}"""` },
   ];
 }
 
 function clean(text) {
-  // strip any leftover reasoning tags just in case
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-// split a "TITLE: ...\n\n<body>" response into { title, body }
 function parseOutput(text) {
   const m = text.match(/^\s*TITLE:\s*(.+?)\s*\n([\s\S]*)$/i);
   if (m) return { title: m[1].trim(), body: m[2].trim() };
   return { title: "", body: text };
 }
 
-genBtn.addEventListener("click", async () => {
-  const product = productEl.value.trim();
-  const plainReply = mode === "comment" && !commentPromoEl.checked;
+function prettyError(err) {
+  if (err.name === "AbortError") return "cancelled";
+  const m = String(err.message || err);
+  if (/Failed to fetch|NetworkError/i.test(m)) return "network error — check your connection";
+  if (/api 401|api 403/i.test(m)) return "auth failed — the nvidia key was rejected";
+  if (/api 429/i.test(m)) return "rate limited — wait a moment and retry";
+  return m;
+}
 
-  // plain replies don't need a product; everything else does
-  if (!plainReply && !product) {
-    setStatus("fill in the product field first", true);
+// ---------- generate ----------
+async function generate() {
+  // toggle: clicking while loading cancels
+  if (state.loading) { abortCtrl?.abort(); return; }
+
+  if (!plainReplyMode() && !el.product.value.trim()) {
+    setStatus("fill in the product field first", "error");
+    el.product.focus();
     return;
   }
-  if (mode === "comment" && !commentEl.value.trim()) {
-    setStatus("paste the comment you're replying to", true);
+  if (state.mode === "comment" && !el.comment.value.trim()) {
+    setStatus("paste the comment you're replying to", "error");
+    el.comment.focus();
     return;
   }
 
-  genBtn.disabled = true;
-  setStatus("writing...");
-  outputWrap.hidden = true;
-  copyBtn.hidden = true;
-  titleWrap.hidden = true;
-  copyTitleBtn.hidden = true;
-  speedWrap.hidden = true;
-  typeBtn.hidden = true;
+  state.loading = true;
+  renderLoading();
+  setStatus("writing…", "info");
+  abortCtrl = new AbortController();
 
   try {
     const res = await fetch(ENDPOINT, {
@@ -235,78 +304,104 @@ genBtn.addEventListener("click", async () => {
         stream: false,
         chat_template_kwargs: { enable_thinking: false },
       }),
+      signal: abortCtrl.signal,
     });
 
     if (!res.ok) {
       const body = await res.text();
-      throw new Error(`api ${res.status}: ${body.slice(0, 200)}`);
+      throw new Error(`api ${res.status}: ${body.slice(0, 160)}`);
     }
 
     const data = await res.json();
     const text = clean(data?.choices?.[0]?.message?.content || "");
     if (!text) throw new Error("empty response from model");
 
-    const { title, body } = parseOutput(text);
-
-    if (title) {
-      titleEl.value = title;
-      titleWrap.hidden = false;
-      copyTitleBtn.hidden = false;
-    }
-
-    outputEl.value = body;
-    outputWrap.hidden = false;
-    copyBtn.hidden = false;
-    speedWrap.hidden = false;
-    typeBtn.hidden = false;
+    state.result = parseOutput(text);
+    persist();
+    renderResult();
     setStatus("");
+    el.result.scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (err) {
-    setStatus(err.message || String(err), true);
+    setStatus(prettyError(err), err.name === "AbortError" ? "info" : "error");
   } finally {
-    genBtn.disabled = false;
+    state.loading = false;
+    abortCtrl = null;
+    renderLoading();
   }
-});
+}
 
-copyBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(outputEl.value);
-  copyBtn.textContent = "copied";
-  setTimeout(() => (copyBtn.textContent = "copy post"), 1200);
-});
+// ---------- type into reddit ----------
+async function typeIntoReddit() {
+  const text = el.output.value;
+  if (!text || el.typeBtn.disabled) return;
 
-copyTitleBtn.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(titleEl.value);
-  copyTitleBtn.textContent = "copied";
-  setTimeout(() => (copyTitleBtn.textContent = "copy title"), 1200);
-});
-
-speedEl.addEventListener("input", () => {
-  speedValEl.textContent = speedEl.value;
-});
-
-typeBtn.addEventListener("click", async () => {
-  const text = outputEl.value;
-  if (!text) return;
-
-  typeBtn.disabled = true;
-  setStatus("typing into reddit...");
+  el.typeBtn.disabled = true;
+  setStatus("typing into reddit…", "info");
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !/^https:\/\/([a-z0-9-]+\.)?reddit\.com\//i.test(tab.url || "")) {
       throw new Error("open a reddit tab and click into the comment/post box first");
     }
-
     const res = await chrome.tabs.sendMessage(tab.id, {
       type: "TYPE_TEXT",
       text,
-      delayMs: Number(speedEl.value),
+      delayMs: Number(el.speed.value) * 30, // level 1-10 -> 30-300ms per word
     });
-
-    if (!res || !res.ok) throw new Error(res?.error || "couldn't reach the page — reload the reddit tab");
-    setStatus("done — typed into the box ✓");
+    if (!res || !res.ok) {
+      throw new Error(res?.error || "couldn't reach the page — reload the reddit tab");
+    }
+    setStatus("typed into the box ✓", "success");
   } catch (err) {
-    setStatus(err.message || String(err), true);
+    setStatus(prettyError(err), "error");
   } finally {
-    typeBtn.disabled = false;
+    el.typeBtn.disabled = false;
+  }
+}
+
+async function copyToClipboard(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    flashBtn(btn, "copied ✓");
+  } catch {
+    setStatus("clipboard blocked — select and copy manually", "error");
+  }
+}
+
+// ---------- wiring ----------
+el.tabs.forEach((t) =>
+  t.addEventListener("click", () => {
+    state.mode = t.dataset.mode;
+    renderMode();
+    persist();
+  })
+);
+
+el.commentPromo.addEventListener("change", () => { renderMode(); persist(); });
+el.hook.addEventListener("change", persist);
+el.stealth.addEventListener("change", persist);
+
+[el.product, el.comment].forEach((t) =>
+  t.addEventListener("input", () => { autoGrow(t); persist(); })
+);
+
+el.speed.addEventListener("input", () => {
+  el.speedVal.textContent = el.speed.value;
+  persist();
+});
+
+el.generate.addEventListener("click", generate);
+el.regen.addEventListener("click", generate);
+el.typeBtn.addEventListener("click", typeIntoReddit);
+el.copy.addEventListener("click", () => copyToClipboard(el.output.value, el.copy));
+el.copyTitle.addEventListener("click", () => copyToClipboard(el.titleOut.value, el.copyTitle));
+
+// ctrl/cmd + enter to generate from anywhere
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    generate();
   }
 });
+
+restore();
