@@ -89,6 +89,11 @@ select:focus { outline: none; border-color: #2b6cff; }
 
 .check input { margin-top: 1px; accent-color: #2b6cff; }
 
+input[type="range"] { width: 100%; accent-color: #2b6cff; }
+
+#type-btn { width: 100%; padding: 9px; background: #1f7a4d; color: #fff; border: none; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 6px; }
+#type-btn:disabled { opacity: 0.55; cursor: default; }
+
 button#generate, button#copy {
   width: 100%;
   padding: 9px;

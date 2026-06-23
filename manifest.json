@@ -7,6 +7,17 @@
     "default_title": "Story Pitch Writer",
     "default_popup": "popup.html"
   },
-  "permissions": ["storage"],
-  "host_permissions": ["https://integrate.api.nvidia.com/*"]
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://integrate.api.nvidia.com/*",
+    "https://*.reddit.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.reddit.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
 }

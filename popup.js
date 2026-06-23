@@ -97,6 +97,10 @@ const titleWrap = $("title-wrap");
 const copyTitleBtn = $("copy-title");
 const genBtn = $("generate");
 const statusEl = $("status");
+const typeBtn = $("type-btn");
+const speedEl = $("speed");
+const speedValEl = $("speed-val");
+const speedWrap = $("speed-wrap");
 
 // restore saved product text
 chrome.storage.local.get(["product"], (r) => {
@@ -212,6 +216,8 @@ genBtn.addEventListener("click", async () => {
   copyBtn.hidden = true;
   titleWrap.hidden = true;
   copyTitleBtn.hidden = true;
+  speedWrap.hidden = true;
+  typeBtn.hidden = true;
 
   try {
     const res = await fetch(ENDPOINT, {
@@ -251,6 +257,8 @@ genBtn.addEventListener("click", async () => {
     outputEl.value = body;
     outputWrap.hidden = false;
     copyBtn.hidden = false;
+    speedWrap.hidden = false;
+    typeBtn.hidden = false;
     setStatus("");
   } catch (err) {
     setStatus(err.message || String(err), true);
@@ -269,4 +277,36 @@ copyTitleBtn.addEventListener("click", async () => {
   await navigator.clipboard.writeText(titleEl.value);
   copyTitleBtn.textContent = "copied";
   setTimeout(() => (copyTitleBtn.textContent = "copy title"), 1200);
+});
+
+speedEl.addEventListener("input", () => {
+  speedValEl.textContent = speedEl.value;
+});
+
+typeBtn.addEventListener("click", async () => {
+  const text = outputEl.value;
+  if (!text) return;
+
+  typeBtn.disabled = true;
+  setStatus("typing into reddit...");
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !/^https:\/\/([a-z0-9-]+\.)?reddit\.com\//i.test(tab.url || "")) {
+      throw new Error("open a reddit tab and click into the comment/post box first");
+    }
+
+    const res = await chrome.tabs.sendMessage(tab.id, {
+      type: "TYPE_TEXT",
+      text,
+      delayMs: Number(speedEl.value),
+    });
+
+    if (!res || !res.ok) throw new Error(res?.error || "couldn't reach the page — reload the reddit tab");
+    setStatus("done — typed into the box ✓");
+  } catch (err) {
+    setStatus(err.message || String(err), true);
+  } finally {
+    typeBtn.disabled = false;
+  }
 });

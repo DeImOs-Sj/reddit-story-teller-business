@@ -60,6 +60,12 @@
       <textarea id="output" rows="8" readonly></textarea>
     </label>
     <button id="copy" hidden>copy post</button>
+
+    <label class="field" id="speed-wrap" hidden>
+      <span>typing speed (ms per word) — <b id="speed-val">45</b></span>
+      <input type="range" id="speed" min="0" max="200" step="5" value="45" />
+    </label>
+    <button id="type-btn" hidden>⌨ type into reddit box</button>
   </main>
 
   <script src="popup.js"></script>
