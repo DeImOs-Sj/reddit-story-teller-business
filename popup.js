@@ -8,6 +8,7 @@ const SYSTEM_PROMPT = `you write HOOK posts and comment replies for reddit-style
 hard rules:
 - you are just a person venting about a problem you hit and what you ended up doing about it. the thing you built is mentioned offhand, like "so i ended up hacking together my own little thing" — never hyped, never named like a brand, never described feature-by-feature. one quick casual mention, that's it.
 - NEVER sell. NO call-to-action, NO "try it", NO "dm me", NO "link below", NO "check it out", NO "would this save you hassle". those are banned.
+- NEVER include any link, url, website, or @handle. ever. not even a placeholder. subreddits ban links.
 - the ENDING is the hook — a real-sounding question that pulls replies. pick the one the user asks for:
   (a) ask the room for cheaper alternatives, like you're STILL looking: "does anyone actually know a cheaper way to do this? feels like there should be something obvious i'm missing" — even though you built your own, you play it like you're hunting, which baits people to reply.
   (b) float making it live: "honestly ive been thinking about cleaning it up and putting it online for other people too — would anyone here actually be interested, or is that a dumb idea?" — gauge interest, low-key, self-doubting, no pressure.
@@ -50,11 +51,22 @@ const HOOK_INSTRUCTIONS = {
   launch: "ending hook: float making it live and ask if anyone'd be interested (option b).",
 };
 
+// extra rules to dodge subreddit self-promo auto-mods (rule-8 style)
+const STEALTH_RULES = `
+
+STEALTH MODE — this is going to a strict subreddit that auto-removes self-promo. obey these, they OVERRIDE the hook instruction above:
+- you are NOT offering, sharing, launching, or recruiting testers for anything. do not say "test it", "would anyone be interested", "i could put it online", "dm me", "i made an app/tool you can use". all banned — they trip the filter.
+- the thing you built stays purely INSIDE your past story as something you already did just for yourself. it is not on offer. mention it once, plainly, then move on.
+- no brand name, no product name, no links, no urls, no "@". none.
+- the ENDING must be a genuine ADVICE question to the room about the PROBLEM or the METHOD — never about your thing. like: "anyone know a cheaper way to do this?", "how are you all measuring which queries actually pull citations?", "is rolling your own the move here or am i missing some obvious option?".
+- read like a normal person asking for help, zero promo energy.`;
+
 let mode = "post";
 
 const $ = (id) => document.getElementById(id);
 const productEl = $("product");
 const hookEl = $("hook");
+const stealthEl = $("stealth");
 const commentEl = $("comment");
 const commentField = $("comment-field");
 const outputEl = $("output");
@@ -94,9 +106,10 @@ function setStatus(msg, isError = false) {
 function buildUserMessage() {
   const product = productEl.value.trim();
   const hook = HOOK_INSTRUCTIONS[hookEl.value] || HOOK_INSTRUCTIONS.auto;
+  const stealth = stealthEl.checked ? STEALTH_RULES : "";
   if (mode === "comment") {
     const comment = commentEl.value.trim();
-    return `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}
+    return `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
 
 the comment i'm replying to:
 """${comment}"""
@@ -104,7 +117,7 @@ the comment i'm replying to:
 my product / context:
 """${product}"""`;
   }
-  return `write a fresh hook post in the storytelling style. ${hook}
+  return `write a fresh hook post in the storytelling style. ${hook}${stealth}
 
 my product / what to write about:
 """${product}"""`;

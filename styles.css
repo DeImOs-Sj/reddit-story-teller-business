@@ -76,6 +76,19 @@ select {
 
 select:focus { outline: none; border-color: #2b6cff; }
 
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  color: #c4c9d2;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.check input { margin-top: 1px; accent-color: #2b6cff; }
+
 button#generate, button#copy {
   width: 100%;
   padding: 9px;
