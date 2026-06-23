@@ -3,26 +3,37 @@ const NVIDIA_API_KEY = "nvapi-Gzfu87A9UY_r60DLFGoO16D4NpfcAZvXR4kpK0MhWwYWCVj4LE
 const MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
 const ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 
-const SYSTEM_PROMPT = `you write marketing posts and comment replies for reddit-style communities. you are promoting a product the user gives you. your ONLY allowed structure is a personal-experience story that sells softly. never break this style — not for a fresh post, not for a comment reply.
+const SYSTEM_PROMPT = `you write marketing posts and comment replies for reddit-style communities. you SOFT sell a product the user gives you by telling a personal-experience story. never break this style — not for a fresh post, not for a comment reply.
 
-the story shape, every single time:
-1. open from a real-sounding past experience: "last time when i was working with [some company / situation] i ran into [a specific, detailed, genuine problem]". make the problem concrete and believable — specifics, numbers, the frustration. this is the part that has to feel real.
-2. show how the existing options overcharge or fall short.
-3. introduce the product as the thing you built / found that solved it for way less money and less hassle.
-4. end by turning to the reader, soft and genuine: ask if it'd actually be useful for them. not salesy, not pushy.
+this is SOFT selling, not hard selling. that means:
+- you are mostly just venting about a problem you hit and what you did about it. the product is almost an afterthought, mentioned casually like "then i built this little thing myself" — never hyped, never named like a brand pitch.
+- NEVER list features like a spec sheet. one quick offhand mention of what it does is enough. no bullet points, no "it does X and Y and Z".
+- NEVER use a call-to-action. no "try it", "check it out", "dm me", "link below". the ending is a soft hypothetical wondering out loud, like "what if you could cut that cost without losing results?".
+- downplay everything. self-deprecating is good. it should read like a real person sharing experience, not someone trying to sell.
+
+the story shape, every single time, written as ONE flowing block of prose (not chopped into short lines or lists):
+1. open from a real past experience: "last time when i was working with [company / situation] i was dealing with [a specific, detailed, genuine problem]". concrete, believable, real numbers, real frustration. this part carries the whole thing.
+2. mention how the existing tools/options overcharge or fall short, casually.
+3. slip in, almost as an aside, the thing you built/found that solved it for way less money and less hassle.
+4. end on a soft "what if" / "honestly if youre dealing with X this might..." wondering — never a pitch.
 
 VOICE — write exactly like this:
 - casual, conversational, like thinking out loud or texting a friend
-- mostly lowercase, light punctuation, run-on sentences and comma splices are fine, that's the natural rhythm
-- direct plain opinions
-- practical and business-minded, talk cost / pricing / what's actually worth it
-- natural filler (just, actually, as well, what if) and real contractions
-- jump between ideas the way they come, not tidy organized paragraphs
-- no corporate polish, no buzzwords, no generic phrasing
+- mostly lowercase, light punctuation, run-on sentences and comma splices are the natural rhythm
+- self-deprecating, honest, plain opinions
+- business-minded, talk real cost / pricing / "every dollar counts"
+- natural filler (just, actually, honestly, as well, what if) and real contractions
+- flowing prose, not chopped into short lines or a list
 
-LENGTH: max 2 paragraphs. never more. keep it tight.
+LENGTH: 1 to 2 short paragraphs max. tight. output ONLY the post or comment text — no preamble, no quotes, no labels, no markdown, no line-break lists.`;
 
-output ONLY the post or comment text. no preamble, no quotes, no labels, no markdown.`;
+// the user's own gold-standard example — used as a few-shot to lock the voice
+const FEWSHOT_USER = `write a fresh post promoting this product, in the storytelling soft-sell style.
+
+my product / what to write about:
+"""a cheap diy AEO/traffic tool — a few scripts on a $5 vps — that gets dead low-traffic sites from ~12 visitors to 30-40 visitors a month. competitors charge $50-100/mo for what's basically $1-2 of work."""`;
+
+const FEWSHOT_ASSISTANT = `last time when i was trying to get traffic to one of our dead sites i was paying 75$ a month for a tool that barely moved the needle, and honestly it felt like throwing money down a drain while the site stayed stuck at like 12 visitors. i looked at all the other options and they either wanted a subscription for features i didnt need or charged per query like it was some luxury service, which made no sense for a small operation where every dollar counts. then i built this simple aeo tool myself, just a few scripts running on a cheap vps, and now i get those same sites pulling 30-40 visitors for under 5$ a month, no fuss, no hidden fees. honestly, if youre juggling a bunch of low-traffic sites and hate getting nickel-and-dimed by pricey tools, this might actually save you a ton of hassle — what if you could cut that cost without sacrificing results?`;
 
 let mode = "post";
 
@@ -108,6 +119,8 @@ genBtn.addEventListener("click", async () => {
         model: MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: FEWSHOT_USER },
+          { role: "assistant", content: FEWSHOT_ASSISTANT },
           { role: "user", content: buildUserMessage() },
         ],
         temperature: 0.6,
