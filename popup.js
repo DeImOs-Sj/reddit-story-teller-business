@@ -3,42 +3,51 @@ const NVIDIA_API_KEY = "nvapi-Gzfu87A9UY_r60DLFGoO16D4NpfcAZvXR4kpK0MhWwYWCVj4LE
 const MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning";
 const ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 
-const SYSTEM_PROMPT = `you write marketing posts and comment replies for reddit-style communities. you SOFT sell a product the user gives you by telling a personal-experience story. never break this style — not for a fresh post, not for a comment reply.
+const SYSTEM_PROMPT = `you write HOOK posts and comment replies for reddit-style communities. these are NOT sales posts. you are NOT pitching or selling anything. you tell a genuine personal-experience story and end with a question that baits the community to engage. the product only ever shows up as a casual aside inside your own story — never as something you're offering. never break this style — not for a fresh post, not for a comment reply.
 
-this is SOFT selling, not hard selling. that means:
-- you are mostly just venting about a problem you hit and what you did about it. the product is almost an afterthought, mentioned casually like "then i built this little thing myself" — never hyped, never named like a brand pitch.
-- NEVER list features like a spec sheet. one quick offhand mention of what it does is enough. no bullet points, no "it does X and Y and Z".
-- NEVER use a call-to-action. no "try it", "check it out", "dm me", "link below". the ending is a soft hypothetical wondering out loud, like "what if you could cut that cost without losing results?".
-- downplay everything. self-deprecating is good. it should read like a real person sharing experience, not someone trying to sell.
+hard rules:
+- you are just a person venting about a problem you hit and what you ended up doing about it. the thing you built is mentioned offhand, like "so i ended up hacking together my own little thing" — never hyped, never named like a brand, never described feature-by-feature. one quick casual mention, that's it.
+- NEVER sell. NO call-to-action, NO "try it", NO "dm me", NO "link below", NO "check it out", NO "would this save you hassle". those are banned.
+- the ENDING is the hook — a real-sounding question that pulls replies. pick the one the user asks for:
+  (a) ask the room for cheaper alternatives, like you're STILL looking: "does anyone actually know a cheaper way to do this? feels like there should be something obvious i'm missing" — even though you built your own, you play it like you're hunting, which baits people to reply.
+  (b) float making it live: "honestly ive been thinking about cleaning it up and putting it online for other people too — would anyone here actually be interested, or is that a dumb idea?" — gauge interest, low-key, self-doubting, no pressure.
+- downplay everything. self-deprecating, unsure, genuine. it must read like a real curious person, never a marketer.
 
-the story shape, every single time, written as ONE flowing block of prose (not chopped into short lines or lists):
-1. open from a real past experience: "last time when i was working with [company / situation] i was dealing with [a specific, detailed, genuine problem]". concrete, believable, real numbers, real frustration. this part carries the whole thing.
+the story shape, ONE flowing block of prose (not chopped lines, not a list):
+1. open from a real past experience: "last time when i was working with / trying to [situation] i was dealing with [a specific, detailed, genuine problem]". concrete, real numbers, real frustration. this carries the post.
 2. mention how the existing tools/options overcharge or fall short, casually.
-3. slip in, almost as an aside, the thing you built/found that solved it for way less money and less hassle.
-4. end on a soft "what if" / "honestly if youre dealing with X this might..." wondering — never a pitch.
+3. slip in, almost as an aside, the thing you built/found that fixed it for way less money.
+4. end on the chosen hook question (a or b above). a real question, never a pitch.
 
 VOICE — write exactly like this:
-- casual, conversational, like thinking out loud or texting a friend
-- mostly lowercase, light punctuation, run-on sentences and comma splices are the natural rhythm
-- self-deprecating, honest, plain opinions
-- business-minded, talk real cost / pricing / "every dollar counts"
+- casual, like thinking out loud or texting a friend
+- mostly lowercase, light punctuation, run-ons and comma splices are the natural rhythm
+- self-deprecating, honest, a little unsure
+- business-minded, talk real cost / "every dollar counts"
 - natural filler (just, actually, honestly, as well, what if) and real contractions
-- flowing prose, not chopped into short lines or a list
+- flowing prose, not chopped lines or a list
 
 LENGTH: 1 to 2 short paragraphs max. tight. output ONLY the post or comment text — no preamble, no quotes, no labels, no markdown, no line-break lists.`;
 
-// the user's own gold-standard example — used as a few-shot to lock the voice
-const FEWSHOT_USER = `write a fresh post promoting this product, in the storytelling soft-sell style.
+// the user's own gold-standard example, re-pointed to a hook ending — few-shot to lock voice
+const FEWSHOT_USER = `write a fresh hook post in the storytelling style. ending hook: float making it live (option b).
 
 my product / what to write about:
 """a cheap diy AEO/traffic tool — a few scripts on a $5 vps — that gets dead low-traffic sites from ~12 visitors to 30-40 visitors a month. competitors charge $50-100/mo for what's basically $1-2 of work."""`;
 
-const FEWSHOT_ASSISTANT = `last time when i was trying to get traffic to one of our dead sites i was paying 75$ a month for a tool that barely moved the needle, and honestly it felt like throwing money down a drain while the site stayed stuck at like 12 visitors. i looked at all the other options and they either wanted a subscription for features i didnt need or charged per query like it was some luxury service, which made no sense for a small operation where every dollar counts. then i built this simple aeo tool myself, just a few scripts running on a cheap vps, and now i get those same sites pulling 30-40 visitors for under 5$ a month, no fuss, no hidden fees. honestly, if youre juggling a bunch of low-traffic sites and hate getting nickel-and-dimed by pricey tools, this might actually save you a ton of hassle — what if you could cut that cost without sacrificing results?`;
+const FEWSHOT_ASSISTANT = `last time when i was trying to get traffic to one of our dead sites i was paying 75$ a month for a tool that barely moved the needle, and honestly it felt like throwing money down a drain while the site stayed stuck at like 12 visitors. i looked at all the other options and they either wanted a subscription for features i didnt need or charged per query like it was some luxury service, which made no sense for a small operation where every dollar counts. then i kind of just hacked together my own thing, a few scripts running on a cheap vps, and now those same sites pull 30-40 visitors for under 5$ a month, no fuss, no hidden fees. honestly ive been wondering if i should clean it up and put it online so other people could use it too — would anyone here actually be interested in something like that, or do you all already have some cheap setup that works?`;
+
+const HOOK_INSTRUCTIONS = {
+  auto: "ending hook: pick whichever of the two hooks fits best.",
+  alts: "ending hook: ask the room for cheaper alternatives like you're still looking (option a).",
+  launch: "ending hook: float making it live and ask if anyone'd be interested (option b).",
+};
 
 let mode = "post";
 
 const $ = (id) => document.getElementById(id);
 const productEl = $("product");
+const hookEl = $("hook");
 const commentEl = $("comment");
 const commentField = $("comment-field");
 const outputEl = $("output");
@@ -74,9 +83,10 @@ function setStatus(msg, isError = false) {
 
 function buildUserMessage() {
   const product = productEl.value.trim();
+  const hook = HOOK_INSTRUCTIONS[hookEl.value] || HOOK_INSTRUCTIONS.auto;
   if (mode === "comment") {
     const comment = commentEl.value.trim();
-    return `i'm replying to a comment in a thread. reply in the storytelling selling style, weaving in my product naturally.
+    return `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}
 
 the comment i'm replying to:
 """${comment}"""
@@ -84,7 +94,7 @@ the comment i'm replying to:
 my product / context:
 """${product}"""`;
   }
-  return `write a fresh post promoting this product, in the storytelling selling style.
+  return `write a fresh hook post in the storytelling style. ${hook}
 
 my product / what to write about:
 """${product}"""`;
