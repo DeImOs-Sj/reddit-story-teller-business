@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Story Pitch Writer</title>
+</head>
+<body>
+  <header>
+    <h1>story pitch writer</h1>
+    <div class="tabs">
+      <button id="tab-post" class="tab active" data-mode="post">new post</button>
+      <button id="tab-comment" class="tab" data-mode="comment">reply to comment</button>
+    </div>
+  </header>
+
+  <main>
+    <label class="field">
+      <span>your product / what you're selling</span>
+      <textarea id="product" rows="3" placeholder="e.g. P — a cheap alternative to [X] that does ... for $Y instead of $Z"></textarea>
+    </label>
+
+    <label class="field" id="comment-field" hidden>
+      <span>the comment you're replying to</span>
+      <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
+    </label>
+
+    <button id="generate">generate</button>
+
+    <div id="status" class="status" hidden></div>
+
+    <label class="field" id="output-wrap" hidden>
+      <span>result</span>
+      <textarea id="output" rows="8" readonly></textarea>
+    </label>
+    <button id="copy" hidden>copy</button>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

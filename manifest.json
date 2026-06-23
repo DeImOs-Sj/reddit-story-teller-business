@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Story Pitch Writer",
+  "version": "1.0.0",
+  "description": "Generate marketing posts & comment replies in a personal-story selling voice.",
+  "action": {
+    "default_title": "Story Pitch Writer",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["https://integrate.api.nvidia.com/*"]
+}
