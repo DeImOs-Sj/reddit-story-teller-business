@@ -61,6 +61,24 @@ STEALTH MODE — this is going to a strict subreddit that auto-removes self-prom
 - the ENDING must be a genuine ADVICE question to the room about the PROBLEM or the METHOD — never about your thing. like: "anyone know a cheaper way to do this?", "how are you all measuring which queries actually pull citations?", "is rolling your own the move here or am i missing some obvious option?".
 - read like a normal person asking for help, zero promo energy.`;
 
+// separate prompt for plain comment replies — voice only, NO selling at all
+const REPLY_PROMPT = `you write a genuine reddit comment reply in a real person's casual voice. you are NOT selling or promoting anything. you do NOT have a product. just react like a normal human in the thread.
+
+what to do:
+- actually respond to what the comment says — agree or push back, add a thought or a small relevant experience, ask a follow-up, or give a useful honest take. engage with its real content, don't be generic.
+- it's fine to just be short. a real comment is often 2-4 sentences. don't pad it.
+
+VOICE:
+- casual, mostly lowercase, light punctuation, run-ons and comma splices are fine
+- self-deprecating, honest, plain opinions, real contractions
+- natural filler (just, honestly, actually, tbh, ngl) used sparingly
+- flowing prose, not lists
+
+HARD BANS:
+- NEVER mention, hint at, or promote any product, tool, app, service, or thing you built. zero self-promo.
+- no links, no urls, no "@", no brand names.
+- no title line. output ONLY the reply text — no quotes, no labels, no markdown.`;
+
 let mode = "post";
 
 const $ = (id) => document.getElementById(id);
@@ -69,6 +87,8 @@ const hookEl = $("hook");
 const stealthEl = $("stealth");
 const commentEl = $("comment");
 const commentField = $("comment-field");
+const commentPromoEl = $("comment-promo");
+const commentPromoWrap = $("comment-promo-wrap");
 const outputEl = $("output");
 const outputWrap = $("output-wrap");
 const copyBtn = $("copy");
@@ -93,6 +113,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     commentField.hidden = mode !== "comment";
+    commentPromoWrap.hidden = mode !== "comment";
   });
 });
 
@@ -103,24 +124,60 @@ function setStatus(msg, isError = false) {
   statusEl.classList.toggle("error", isError);
 }
 
-function buildUserMessage() {
+// build the full messages array for the chat completion, branching on mode
+function buildMessages() {
   const product = productEl.value.trim();
   const hook = HOOK_INSTRUCTIONS[hookEl.value] || HOOK_INSTRUCTIONS.auto;
   const stealth = stealthEl.checked ? STEALTH_RULES : "";
+
+  // plain comment reply — genuine, no product, no promo
+  if (mode === "comment" && !commentPromoEl.checked) {
+    const comment = commentEl.value.trim();
+    return [
+      { role: "system", content: REPLY_PROMPT },
+      {
+        role: "user",
+        content: `reply to this reddit comment in a genuine casual human voice. just react to it, no promotion, no product, no links.
+
+the comment i'm replying to:
+"""${comment}"""`,
+      },
+    ];
+  }
+
+  // promo comment reply — weave the story in softly
   if (mode === "comment") {
     const comment = commentEl.value.trim();
-    return `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
+    return [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: FEWSHOT_USER },
+      { role: "assistant", content: FEWSHOT_ASSISTANT },
+      {
+        role: "user",
+        content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
 
 the comment i'm replying to:
 """${comment}"""
 
 my product / context:
-"""${product}"""`;
+"""${product}"""`,
+      },
+    ];
   }
-  return `write a fresh hook post in the storytelling style. ${hook}${stealth}
+
+  // fresh hook post
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: FEWSHOT_USER },
+    { role: "assistant", content: FEWSHOT_ASSISTANT },
+    {
+      role: "user",
+      content: `write a fresh hook post in the storytelling style. ${hook}${stealth}
 
 my product / what to write about:
-"""${product}"""`;
+"""${product}"""`,
+    },
+  ];
 }
 
 function clean(text) {
@@ -137,7 +194,13 @@ function parseOutput(text) {
 
 genBtn.addEventListener("click", async () => {
   const product = productEl.value.trim();
-  if (!product) { setStatus("fill in the product field first", true); return; }
+  const plainReply = mode === "comment" && !commentPromoEl.checked;
+
+  // plain replies don't need a product; everything else does
+  if (!plainReply && !product) {
+    setStatus("fill in the product field first", true);
+    return;
+  }
   if (mode === "comment" && !commentEl.value.trim()) {
     setStatus("paste the comment you're replying to", true);
     return;
@@ -159,12 +222,7 @@ genBtn.addEventListener("click", async () => {
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: FEWSHOT_USER },
-          { role: "assistant", content: FEWSHOT_ASSISTANT },
-          { role: "user", content: buildUserMessage() },
-        ],
+        messages: buildMessages(),
         temperature: 0.6,
         top_p: 0.95,
         max_tokens: 2048,
