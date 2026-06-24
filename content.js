@@ -83,6 +83,11 @@ function insertChunk(el, chunk) {
     const setter = Object.getOwnPropertyDescriptor(proto, "value").set;
     setter.call(el, el.value + chunk);
     el.dispatchEvent(new Event("input", { bubbles: true }));
+  } else if (chunk === "\n" || chunk === "\r\n") {
+    // rich editors (Lexical/Draft) don't take a literal newline via insertText
+    if (!document.execCommand("insertParagraph")) {
+      document.execCommand("insertLineBreak");
+    }
   } else {
     // contenteditable rich editor — execCommand fires the proper beforeinput/input events
     const ok = document.execCommand("insertText", false, chunk);
@@ -122,15 +127,19 @@ function caretToEnd(el) {
   }
 }
 
-async function typeText(text, delayMs) {
+async function typeText(text, delayMs, byChar) {
   const el = findEditable();
-  if (!el) return { ok: false, error: "no reddit text box found — click into the comment/post box first" };
+  if (!el) return { ok: false, error: "no text box found — click into the comment/post box first" };
 
   el.focus();
   if (el.isContentEditable) caretToEnd(el);
 
-  // split into words but keep the trailing spaces so it reads naturally
-  const tokens = text.match(/\S+\s*/g) || [text];
+  // byChar (default): one character at a time — delayMs is the per-character gap,
+  // so 1000ms => 1 char/sec. otherwise fall back to word-by-word tokens.
+  const tokens = byChar === false
+    ? (text.match(/\S+\s*/g) || [text])
+    : Array.from(text);
+
   for (const tok of tokens) {
     insertChunk(el, tok);
     await sleep(delayMs);
@@ -140,7 +149,8 @@ async function typeText(text, delayMs) {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === "TYPE_TEXT") {
-    typeText(msg.text, msg.delayMs ?? 45).then(sendResponse);
+    // default to char-by-char at 1 char/sec if unspecified
+    typeText(msg.text, msg.delayMs ?? 1000, msg.byChar !== false).then(sendResponse);
     return true; // async response
   }
 });

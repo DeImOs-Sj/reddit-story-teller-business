@@ -1,0 +1,13 @@
+# gitnexus knowledge-graph index (large, machine-local)
+.gitnexus/
+
+# local editor tooling (gitnexus skills + hooks)
+.claude/
+
+# misc / scratch
+test.txt
+.opencodeconfig.json
+opencodecofig.json
+
+# os junk
+.DS_Store

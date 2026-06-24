@@ -13,42 +13,37 @@
       <span class="brand-name">story pitch</span>
     </div>
     <div class="tabs" role="tablist">
-      <button class="tab active" data-mode="post" role="tab">new post</button>
+      <button class="tab active" data-mode="post" role="tab">post</button>
       <button class="tab" data-mode="comment" role="tab">reply</button>
+      <button class="tab" data-mode="x" role="tab">x</button>
     </div>
   </header>
 
   <main>
-    <div class="field">
+    <!-- product / idea / topic input (post mode + x-post) -->
+    <div class="field" id="post-input-field">
       <div class="field-label">
         <span id="product-label">your product / what you're selling</span>
-        <span class="hint" id="product-hint"></span>
       </div>
       <textarea id="product" rows="3" placeholder="e.g. a cheap diy tool that does X for $5 instead of the $50/mo others charge"></textarea>
     </div>
 
-    <div class="field" id="comment-field" hidden>
-      <div class="field-label"><span>the comment you're replying to</span></div>
+    <!-- comment / tweet input (reply mode + x-reply) -->
+    <div class="field" id="comment-input-field" hidden>
+      <div class="field-label"><span id="comment-label">the comment you're replying to</span></div>
       <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
-
-      <div class="field" id="tone-field">
-        <div class="field-label"><span>reply tone</span></div>
-        <select id="tone">
-          <option value="neutral">neutral — just natural</option>
-          <option value="supportive">supportive — warm & encouraging</option>
-          <option value="professional">professional — measured & clear</option>
-          <option value="darkhumor">dark humor — dry & sarcastic</option>
-          <option value="disagree">disagree — respectful pushback</option>
-          <option value="ragebait">ragebait — spicy & provocative</option>
-        </select>
-      </div>
-
-      <label class="check" id="comment-promo-wrap">
-        <input type="checkbox" id="comment-promo" />
-        <span>weave my product in <em>(off = genuine reply, no promo)</em></span>
-      </label>
     </div>
 
+    <!-- x: reply vs post-from-idea -->
+    <div class="field" id="x-kind-field" hidden>
+      <div class="field-label"><span>what do you want to write</span></div>
+      <select id="x-kind">
+        <option value="reply">reply to a tweet / comment</option>
+        <option value="post">write a post from an idea</option>
+      </select>
+    </div>
+
+    <!-- post style (post mode only) -->
     <div class="field" id="style-field">
       <div class="field-label"><span>post style</span></div>
       <select id="post-style">
@@ -59,6 +54,20 @@
       </select>
     </div>
 
+    <!-- tone (reply mode + x-reply) -->
+    <div class="field" id="tone-field" hidden>
+      <div class="field-label"><span>tone</span></div>
+      <select id="tone">
+        <option value="neutral">neutral — just natural</option>
+        <option value="supportive">supportive — warm & encouraging</option>
+        <option value="professional">professional — measured & clear</option>
+        <option value="darkhumor">dark humor — dry & sarcastic</option>
+        <option value="disagree">disagree — respectful pushback</option>
+        <option value="ragebait">ragebait — spicy & provocative</option>
+      </select>
+    </div>
+
+    <!-- ending hook (story post or promo reply) -->
     <div class="field" id="hook-field">
       <div class="field-label"><span>ending hook</span></div>
       <select id="hook">
@@ -68,10 +77,28 @@
       </select>
     </div>
 
+    <!-- weave product into a reply (reply mode only) -->
+    <label class="check" id="comment-promo-wrap" hidden>
+      <input type="checkbox" id="comment-promo" />
+      <span>weave my product in <em>(off = genuine reply, no promo)</em></span>
+    </label>
+
+    <!-- stealth (when promoting) -->
     <label class="check" id="stealth-wrap">
       <input type="checkbox" id="stealth" checked />
       <span>stealth mode <em>— avoid self-promo flags (strict subs)</em></span>
     </label>
+
+    <!-- output length -->
+    <div class="field" id="length-field">
+      <div class="field-label"><span>answer length</span></div>
+      <select id="length">
+        <option value="short">short — a few sentences (~220 tok)</option>
+        <option value="medium" selected>medium — 1–2 paragraphs (~512 tok)</option>
+        <option value="long">long — 2–3 paragraphs (~900 tok)</option>
+        <option value="max">max — as long as needed (2048 tok)</option>
+      </select>
+    </div>
 
     <button id="generate" class="btn-primary">
       <span class="spinner"></span>
@@ -105,14 +132,15 @@
 
       <div class="block" id="type-block">
         <div class="block-head">
-          <span>typing speed · <b id="speed-val">3</b> <em class="muted">(1 fast – 10 slow)</em></span>
+          <span>typing speed · <b id="speed-val">1</b> <em class="muted">char/sec (1 slow – 10 fast)</em></span>
         </div>
-        <input type="range" id="speed" min="1" max="10" step="1" value="3" />
-        <button id="type-btn" class="btn-type">⌨ type into reddit box</button>
+        <input type="range" id="speed" min="1" max="10" step="1" value="1" />
+        <button id="type-btn" class="btn-type">⌨ type into the box</button>
       </div>
     </section>
   </main>
 
+  <script src="lib.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

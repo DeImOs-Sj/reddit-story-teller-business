@@ -1,0 +1,12 @@
+{
+  "name": "reddit-story-writer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension that writes reddit/x marketing content in a personal-story voice.",
+  "scripts": {
+    "check": "node --check lib.js && node --check popup.js && node --check content.js",
+    "test": "node --test test/*.test.mjs",
+    "test:eval": "node test/eval.mjs",
+    "test:all": "npm run check && npm test"
+  }
+}
