@@ -21,7 +21,7 @@
   <main>
     <div class="field">
       <div class="field-label">
-        <span>your product / what you're selling</span>
+        <span id="product-label">your product / what you're selling</span>
         <span class="hint" id="product-hint"></span>
       </div>
       <textarea id="product" rows="3" placeholder="e.g. a cheap diy tool that does X for $5 instead of the $50/mo others charge"></textarea>
@@ -30,26 +30,48 @@
     <div class="field" id="comment-field" hidden>
       <div class="field-label"><span>the comment you're replying to</span></div>
       <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
+
+      <div class="field" id="tone-field">
+        <div class="field-label"><span>reply tone</span></div>
+        <select id="tone">
+          <option value="neutral">neutral — just natural</option>
+          <option value="supportive">supportive — warm & encouraging</option>
+          <option value="professional">professional — measured & clear</option>
+          <option value="darkhumor">dark humor — dry & sarcastic</option>
+          <option value="disagree">disagree — respectful pushback</option>
+          <option value="ragebait">ragebait — spicy & provocative</option>
+        </select>
+      </div>
+
       <label class="check" id="comment-promo-wrap">
         <input type="checkbox" id="comment-promo" />
         <span>weave my product in <em>(off = genuine reply, no promo)</em></span>
       </label>
     </div>
 
-    <div id="promo-opts">
-      <div class="field">
-        <div class="field-label"><span>ending hook</span></div>
-        <select id="hook">
-          <option value="auto">auto — let it pick</option>
-          <option value="alts">ask for cheaper alternatives</option>
-          <option value="launch">float making it live (anyone interested?)</option>
-        </select>
-      </div>
-      <label class="check">
-        <input type="checkbox" id="stealth" checked />
-        <span>stealth mode <em>— avoid self-promo flags (strict subs)</em></span>
-      </label>
+    <div class="field" id="style-field">
+      <div class="field-label"><span>post style</span></div>
+      <select id="post-style">
+        <option value="story">personal story + soft hook</option>
+        <option value="hottake">hot take / opinion</option>
+        <option value="question">ask the community</option>
+        <option value="update">build-in-public update</option>
+      </select>
     </div>
+
+    <div class="field" id="hook-field">
+      <div class="field-label"><span>ending hook</span></div>
+      <select id="hook">
+        <option value="auto">auto — let it pick</option>
+        <option value="alts">ask for cheaper alternatives</option>
+        <option value="launch">float making it live (anyone interested?)</option>
+      </select>
+    </div>
+
+    <label class="check" id="stealth-wrap">
+      <input type="checkbox" id="stealth" checked />
+      <span>stealth mode <em>— avoid self-promo flags (strict subs)</em></span>
+    </label>
 
     <button id="generate" class="btn-primary">
       <span class="spinner"></span>

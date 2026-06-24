@@ -51,6 +51,33 @@ const HOOK_INSTRUCTIONS = {
   launch: "ending hook: float making it live and ask if anyone'd be interested (option b).",
 };
 
+// shared voice + format footer for the non-story post styles
+const POST_FOOTER = `
+VOICE: casual, mostly lowercase, light punctuation, run-ons and comma splices are fine, self-deprecating, honest, plain opinions, real contractions, natural filler (just, honestly, actually, ngl) used sparingly, flowing prose NOT lists.
+HARD BANS: never include any link, url, website, or @handle. never hard-sell or use a call-to-action. no markdown.
+GROUND IT IN THE USER'S ACTUAL INPUT: use the real topic, products, and numbers they give you. do NOT invent a generic story or reuse some template — if they ask a question, answer/pose THAT question.
+LENGTH: 1 to 2 short paragraphs max.
+OUTPUT: first line "TITLE: <short scroll-stopping lowercase title, no clickbait caps>" then a blank line then the body. nothing else — no quotes, no labels, no markdown, no line-break lists.`;
+
+// post styles other than the personal-story hook (these do NOT use the AEO few-shot)
+const POST_STYLE_PROMPTS = {
+  hottake: `you write a punchy HOT-TAKE reddit post in a real person's casual voice, built from the topic the user gives you. you state a clear opinion or pose a provocative question and invite the community to weigh in. you are NOT hard-selling.
+- lead with the take or the question right away, specific to the user's actual situation and numbers.
+- if they mention a product/situation, frame it casually as context for the discussion, not a pitch.
+- back the take with a sentence or two of real reasoning.
+- end by genuinely asking the community what they think.${POST_FOOTER}`,
+
+  question: `you write a sincere QUESTION / ADVICE reddit post in a real person's casual voice, built from what the user gives you. you are genuinely asking the community for input — not selling.
+- get to the real question fast, grounded in the user's actual situation and numbers.
+- give just enough context (what they tried or built, the numbers) so the question makes sense, mentioned plainly, never pitched.
+- end with the clear question(s) you want answered.${POST_FOOTER}`,
+
+  update: `you write a humble BUILD-IN-PUBLIC update reddit post in a real person's casual voice, built from what the user gives you. you share progress or a milestone honestly and invite feedback — not a sales pitch.
+- center the real numbers/result they give and what actually happened.
+- be honest about what's working AND what isn't (e.g. users but no revenue yet).
+- end by asking the community for feedback or their take.${POST_FOOTER}`,
+};
+
 // extra rules to dodge subreddit self-promo auto-mods (rule-8 style)
 const STEALTH_RULES = `
 
@@ -79,6 +106,21 @@ HARD BANS:
 - no links, no urls, no "@", no brand names.
 - no title line. output ONLY the reply text — no quotes, no labels, no markdown.`;
 
+// tone overlays for comment replies — appended to the reply instruction
+const TONE_INSTRUCTIONS = {
+  neutral: "",
+  supportive:
+    "TONE: supportive and warm. validate where they're coming from, be encouraging, add a genuinely helpful thought or a bit of reassurance. empathetic, not fake-positive.",
+  professional:
+    "TONE: professional and measured. clear, polite, composed. still human and readable, but drop the heavy slang and keep it level-headed and credible.",
+  darkhumor:
+    "TONE: dark, dry humor. deadpan, a little sarcastic, gallows-humor and self-deprecating jabs are welcome — but stay on-topic and never punch down. no slurs, no harassment, no cruelty toward the person.",
+  disagree:
+    "TONE: respectful disagreement. push back on their point with a real counter-argument or a skeptical take, say why you see it differently. firm but not rude, no insults — disagree with the idea, not the person.",
+  ragebait:
+    "TONE: spicy and provocative. take a bold, contrarian stance designed to make people want to argue back. confident, a little smug, hot-take energy. stay within bounds: no slurs, no hate, no personal attacks or harassment — provoke with opinions, not abuse.",
+};
+
 // ---------- dom refs ----------
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -86,9 +128,14 @@ const el = {
   comment: $("comment"),
   commentField: $("comment-field"),
   commentPromo: $("comment-promo"),
+  tone: $("tone"),
   hook: $("hook"),
+  hookField: $("hook-field"),
+  postStyle: $("post-style"),
+  styleField: $("style-field"),
   stealth: $("stealth"),
-  promoOpts: $("promo-opts"),
+  stealthWrap: $("stealth-wrap"),
+  productLabel: $("product-label"),
   generate: $("generate"),
   genLabel: $("generate").querySelector(".btn-label"),
   status: $("status"),
@@ -112,7 +159,7 @@ let abortCtrl = null;
 let statusTimer = null;
 
 const PERSIST_KEYS = [
-  "product", "comment", "hook", "stealth", "commentPromo", "speed", "mode", "result",
+  "product", "comment", "hook", "postStyle", "stealth", "commentPromo", "tone", "speed", "mode", "result",
 ];
 
 function persist() {
@@ -120,8 +167,10 @@ function persist() {
     product: el.product.value,
     comment: el.comment.value,
     hook: el.hook.value,
+    postStyle: el.postStyle.value,
     stealth: el.stealth.checked,
     commentPromo: el.commentPromo.checked,
+    tone: el.tone.value,
     speed: el.speed.value,
     mode: state.mode,
     result: state.result,
@@ -133,8 +182,10 @@ function restore() {
     if (r.product) el.product.value = r.product;
     if (r.comment) el.comment.value = r.comment;
     if (r.hook) el.hook.value = r.hook;
+    if (r.postStyle) el.postStyle.value = r.postStyle;
     el.stealth.checked = r.stealth ?? true;
     el.commentPromo.checked = r.commentPromo ?? false;
+    if (r.tone) el.tone.value = r.tone;
     if (r.speed) el.speed.value = r.speed;
     state.mode = r.mode === "comment" ? "comment" : "post";
     state.result = r.result || null;
@@ -175,12 +226,36 @@ function plainReplyMode() {
 }
 
 // ---------- render ----------
+const STYLE_LABELS = {
+  story: "your product / what you're selling",
+  hottake: "your topic / hot take (+ the numbers)",
+  question: "what you want to ask (+ context & numbers)",
+  update: "what you built + the progress/numbers",
+};
+
 function renderMode() {
   el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.mode === state.mode));
+  const isPost = state.mode === "post";
   const isComment = state.mode === "comment";
+  const plain = plainReplyMode();
+  const style = el.postStyle.value;
+
   el.commentField.hidden = !isComment;
-  // hook + stealth only matter when we're actually promoting
-  el.promoOpts.hidden = plainReplyMode();
+
+  // post-style selector: post mode only
+  el.styleField.hidden = !isPost;
+
+  // ending hook: only for the story post style, or a promo comment reply
+  el.hookField.hidden = !((isPost && style === "story") || (isComment && el.commentPromo.checked));
+
+  // stealth: whenever we're actually promoting (post of any style, or promo reply)
+  el.stealthWrap.hidden = plain;
+
+  // adapt the input label to the chosen style
+  el.productLabel.textContent = isPost
+    ? STYLE_LABELS[style] || STYLE_LABELS.story
+    : "your product / context (for promo replies)";
+
   el.bodyLabel.textContent = isComment ? "reply" : "post";
 }
 
@@ -211,11 +286,13 @@ function buildMessages() {
   const hook = HOOK_INSTRUCTIONS[el.hook.value] || HOOK_INSTRUCTIONS.auto;
   const stealth = el.stealth.checked ? STEALTH_RULES : "";
   const comment = el.comment.value.trim();
+  const tone = TONE_INSTRUCTIONS[el.tone.value] || "";
+  const toneLine = tone ? `\n\n${tone}` : "";
 
   if (plainReplyMode()) {
     return [
       { role: "system", content: REPLY_PROMPT },
-      { role: "user", content: `reply to this reddit comment in a genuine casual human voice. just react to it, no promotion, no product, no links.
+      { role: "user", content: `reply to this reddit comment in a genuine casual human voice. just react to it, no promotion, no product, no links.${toneLine}
 
 the comment i'm replying to:
 """${comment}"""` },
@@ -227,7 +304,7 @@ the comment i'm replying to:
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: FEWSHOT_USER },
       { role: "assistant", content: FEWSHOT_ASSISTANT },
-      { role: "user", content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}
+      { role: "user", content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in my story naturally. ${hook}${stealth}${toneLine}
 
 the comment i'm replying to:
 """${comment}"""
@@ -237,6 +314,19 @@ my product / context:
     ];
   }
 
+  // non-story post styles: own prompt, NO few-shot so it follows the real topic
+  const style = el.postStyle.value;
+  if (style !== "story" && POST_STYLE_PROMPTS[style]) {
+    return [
+      { role: "system", content: POST_STYLE_PROMPTS[style] },
+      { role: "user", content: `write a ${style === "hottake" ? "hot-take" : style} reddit post from this.${stealth}
+
+my topic / situation / numbers:
+"""${product}"""` },
+    ];
+  }
+
+  // story post — personal-story soft hook (uses the few-shot to lock the voice)
   return [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: FEWSHOT_USER },
@@ -378,8 +468,10 @@ el.tabs.forEach((t) =>
 );
 
 el.commentPromo.addEventListener("change", () => { renderMode(); persist(); });
+el.postStyle.addEventListener("change", () => { renderMode(); persist(); });
 el.hook.addEventListener("change", persist);
 el.stealth.addEventListener("change", persist);
+el.tone.addEventListener("change", persist);
 
 [el.product, el.comment].forEach((t) =>
   t.addEventListener("input", () => { autoGrow(t); persist(); })
