@@ -433,11 +433,20 @@ async function typeIntoReddit() {
     if (!tab || !/^https:\/\/([a-z0-9-]+\.)?reddit\.com\//i.test(tab.url || "")) {
       throw new Error("open a reddit tab and click into the comment/post box first");
     }
-    const res = await chrome.tabs.sendMessage(tab.id, {
+    const msg = {
       type: "TYPE_TEXT",
       text,
       delayMs: Number(el.speed.value) * 30, // level 1-10 -> 30-300ms per word
-    });
+    };
+    let res;
+    try {
+      res = await chrome.tabs.sendMessage(tab.id, msg);
+    } catch (e) {
+      // "Receiving end does not exist" = content script not injected in this tab
+      // (extension reloaded but tab not refreshed). Inject it, then retry.
+      await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ["content.js"] });
+      res = await chrome.tabs.sendMessage(tab.id, msg);
+    }
     if (!res || !res.ok) {
       throw new Error(res?.error || "couldn't reach the page — reload the reddit tab");
     }
