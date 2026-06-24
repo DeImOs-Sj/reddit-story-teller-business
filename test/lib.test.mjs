@@ -76,6 +76,36 @@ test("x post builds from the idea brief", () => {
   assert.match(lastUser(msgs), /an app that does Y/);
 });
 
+// ---------- karma mode ----------
+test("karma mode overrides promo and never mentions a product", () => {
+  // even with promo flags set, karma wins and strips all selling
+  const post = SPW.buildMessages({ mode: "post", karma: true, postStyle: "story", stealth: true, product: "remote work is overrated" });
+  assert.equal(post.length, 2); // no few-shot
+  assert.match(sysOf(post), /MAXIMISE UPVOTES/i);
+  assert.match(sysOf(post), /no self-promo/i);
+  assert.doesNotMatch(lastUser(post), /STEALTH MODE/i);
+  assert.match(lastUser(post), /remote work is overrated/);
+});
+
+test("karma reply + karma x both route to the karma prompts", () => {
+  const reply = SPW.buildMessages({ mode: "comment", karma: true, commentPromo: true, comment: "c", product: "p" });
+  assert.match(sysOf(reply), /reddit COMMENT engineered to get upvotes/i);
+  // product is ignored in karma reply
+  assert.doesNotMatch(lastUser(reply), /\bp\b\n/);
+
+  const xr = SPW.buildMessages({ mode: "x", xKind: "reply", karma: true, tweet: "t" });
+  assert.match(sysOf(xr), /reply to a tweet on X engineered to get likes/i);
+
+  const xp = SPW.buildMessages({ mode: "x", xKind: "post", karma: true, idea: "hot take" });
+  assert.match(sysOf(xp), /X \(twitter\) post engineered to get likes/i);
+  assert.match(lastUser(xp), /hot take/);
+});
+
+test("karma mode still carries the grounding rule", () => {
+  const m = SPW.buildMessages({ mode: "post", karma: true, product: "x" });
+  assert.match(sysOf(m), /NEVER invent specific facts/i);
+});
+
 // ---------- overlays ----------
 test("tone overlay is injected for replies", () => {
   const msgs = SPW.buildMessages({ mode: "comment", comment: "c", tone: "ragebait" });

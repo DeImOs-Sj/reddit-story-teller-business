@@ -34,7 +34,7 @@ hard rules:
 - the ENDING is the hook — a real-sounding question that pulls replies. use the one the user asks for.
 - downplay everything. self-deprecating, unsure, genuine. read like a real curious person, never a marketer.
 
-the story shape, ONE flowing block of prose (not chopped lines, not a list):
+the BODY (everything after the title line) is ONE flowing block of prose — not chopped lines, not a list. the title is a SEPARATE short line above it:
 1. open from the user's real situation: "last time when i was working with / trying to [their situation] i was dealing with [their specific problem]". use THEIR details.
 2. mention how existing tools/options overcharge or fall short, casually — only if the user implied it.
 3. slip in, almost as an aside, the thing they built/found that fixed it.
@@ -139,6 +139,42 @@ OUTPUT: just the reply text. no title, no quotes, no labels, no markdown.`;
 ${X_VOICE}
 OUTPUT: just the tweet text as plain prose. no numbered points, no "line 1 / point 1" structure, no title, no quotes, no labels, no markdown.`;
 
+  // ---------- KARMA MODE ----------
+  // upvote-first. pure genuine value, zero promo, no product, no links. the whole
+  // point of the tool per the user: farm reddit karma + grow on x by being likeable.
+  const KARMA_CORE = `you are writing to MAXIMISE UPVOTES / likes. this is karma farming, done the only way that actually works: by being genuinely good, relatable, and easy to agree with. you have NO product and NO agenda.
+what earns upvotes:
+- relatable and specific — say the thing lots of people quietly think but nicely put.
+- read the room: if the thread/sub clearly agrees on something, reinforce it well; if you add a take, keep it broadly LIKEABLE, not divisive (divisive = downvotes).
+- a little warmth or dry humor goes a long way.
+- concise and skimmable. short and punchy beats a wall of text.
+- sound like a real upvoted human, not a brand and not a try-hard.
+HARD BANS: no product, no self-promo, no "i built", no links, no urls, no @handles, no hashtag spam, no markdown. never sell anything.`;
+
+  const KARMA_REPLY_PROMPT = GROUNDING + `you write a reddit COMMENT engineered to get upvotes.
+${KARMA_CORE}
+- actually engage with the comment you're given — echo it, add a useful tip, a fresh angle, or a laugh.
+- it's fine to be short. 1-3 sentences is often the most upvoted shape.
+OUTPUT: just the comment text. no title, no quotes, no labels.`;
+
+  const KARMA_POST_PROMPT = GROUNDING + `you write a reddit POST engineered to farm upvotes, built from the user's topic/thought.
+${KARMA_CORE}
+- open with a hook the sub will instantly nod at, grounded in the user's actual topic.
+- if it's a question, make it one people genuinely want to answer; if it's a take, keep it widely relatable.
+- end with a light nudge to engage (a question or a relatable closer), never a pitch.
+OUTPUT: line 1 "TITLE: <short scroll-stopping lowercase title>" on its own line, then a blank line, then the body. nothing else.`;
+
+  const KARMA_X_REPLY_PROMPT = GROUNDING + `you write a reply to a tweet on X engineered to get likes.
+${KARMA_CORE}
+- engage with the actual tweet — agree sharply, add a witty line, or a fresh angle. one tight tweet, under ~280 chars.
+OUTPUT: just the reply text. no title, no quotes, no labels.`;
+
+  const KARMA_X_POST_PROMPT = GROUNDING + `you write one original X (twitter) post engineered to get likes, built from the user's topic/thought.
+${KARMA_CORE}
+- one strong tweet. a relatable or mildly clever line people want to like/quote, grounded in the user's topic.
+- end with something that invites replies if it fits naturally.
+OUTPUT: just the tweet text as plain prose. no title, no quotes, no labels.`;
+
   // ---------- tone overlays (replies + x replies) ----------
   const TONE_INSTRUCTIONS = {
     neutral: "",
@@ -182,6 +218,49 @@ OUTPUT: just the tweet text as plain prose. no numbered points, no "line 1 / poi
     const tone = TONE_INSTRUCTIONS[cfg.tone] || "";
     const toneLine = tone ? `\n\n${tone}` : "";
     const lenLine = `\n\n${lengthFor(cfg.length).line}`;
+    const topic = product || idea; // karma reuses the same big input box
+
+    // ----- KARMA MODE: overrides all promo routing -----
+    if (cfg.karma) {
+      // reply to a reddit comment
+      if (cfg.mode === "comment") {
+        return [
+          { role: "system", content: KARMA_REPLY_PROMPT },
+          { role: "user", content: `write an upvote-worthy reddit reply to this comment.${toneLine}${lenLine}
+
+the comment:
+"""${comment}"""` },
+        ];
+      }
+      // x reply
+      if (cfg.mode === "x" && cfg.xKind === "reply") {
+        return [
+          { role: "system", content: KARMA_X_REPLY_PROMPT },
+          { role: "user", content: `write a reply to this tweet that earns likes.${toneLine}${lenLine}
+
+the tweet:
+"""${tweet}"""` },
+        ];
+      }
+      // x post from a thought/topic
+      if (cfg.mode === "x") {
+        return [
+          { role: "system", content: KARMA_X_POST_PROMPT },
+          { role: "user", content: `write an X post that earns likes, from my topic.${lenLine}
+
+my topic / thought:
+"""${topic}"""` },
+        ];
+      }
+      // reddit post
+      return [
+        { role: "system", content: KARMA_POST_PROMPT },
+        { role: "user", content: `write an upvote-worthy reddit post from my topic.${lenLine}
+
+my topic / thought:
+"""${topic}"""` },
+      ];
+    }
 
     // ----- X / twitter -----
     if (cfg.mode === "x") {
@@ -313,6 +392,12 @@ my product / what to write about:
     return { title: "", body: String(text || "").trim() };
   }
 
+  // does this config expect a "TITLE:" line? only reddit posts do.
+  // used to retry when the model merges the title into the body.
+  function expectsTitle(cfg) {
+    return !!cfg && cfg.mode === "post";
+  }
+
   return {
     MODEL,
     ENDPOINT,
@@ -326,6 +411,7 @@ my product / what to write about:
     buildPayload,
     clean,
     parseOutput,
+    expectsTitle,
     looksDegenerate,
   };
 });

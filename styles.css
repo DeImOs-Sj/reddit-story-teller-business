@@ -128,6 +128,21 @@ select { cursor: pointer; appearance: none;
 #promo-opts { display: flex; flex-direction: column; gap: 11px; }
 #comment-promo-wrap { margin-top: 8px; }
 
+/* karma mode toggle — prominent, the headline feature */
+.karma-toggle {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  font-weight: 600;
+  color: var(--text);
+}
+.karma-toggle em { font-weight: 400; }
+.karma-toggle:has(#karma:checked) {
+  border-color: var(--green-hi);
+  background: #122a1d;
+}
+
 /* ---------- buttons ---------- */
 .btn-primary {
   position: relative;

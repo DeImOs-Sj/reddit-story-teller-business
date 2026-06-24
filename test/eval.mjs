@@ -27,7 +27,8 @@ async function call(cfg) {
     if (!res.ok) throw new Error(`api ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = await res.json();
     text = SPW.clean(data?.choices?.[0]?.message?.content || "");
-    if (text && !SPW.looksDegenerate(text)) break;
+    const titleOk = !SPW.expectsTitle(cfg) || !!SPW.parseOutput(text).title;
+    if (text && !SPW.looksDegenerate(text) && titleOk) break;
   }
   return text;
 }
@@ -86,6 +87,28 @@ const CASES = [
       ["no example leak", (raw) => !LEAK.some((r) => r.test(raw))],
       ["grounded in the idea (voice/notes/meeting)", (raw) => /voice|note|meeting|minute|transcri/i.test(raw)],
       ["not absurdly long", (raw) => raw.length < 900],
+    ],
+  },
+  {
+    name: "karma / reddit post (no promo, upvote-first)",
+    cfg: { mode: "post", karma: true, length: "medium",
+      product: "everyone says hustle culture is dead but i still feel guilty taking a weekend off" },
+    checks: [
+      ["has TITLE", (raw, p) => !!p.title],
+      ["no promo / product leak", (raw) => !/\bi built\b|\bi made\b|my tool|my app|my product|dm me/i.test(raw)],
+      ["no links", (raw, p) => !LINK.test(p.body)],
+      ["grounded in the topic (hustle/weekend/guilt)", (raw) => /hustle|weekend|guilt|rest|burnout|off/i.test(raw)],
+    ],
+  },
+  {
+    name: "karma / x reply (likeable, no promo)",
+    cfg: { mode: "x", xKind: "reply", karma: true, length: "short",
+      tweet: "unpopular opinion: most productivity apps just make you spend time organizing instead of doing" },
+    checks: [
+      ["no TITLE", (raw, p) => !p.title],
+      ["no promo", (raw) => !/\bi built\b|my app|my tool|dm me/i.test(raw)],
+      ["engages topic (productivity/app/organiz)", (raw) => /productiv|app|organiz|tool|doing/i.test(raw)],
+      ["tweet-ish length", (raw) => raw.length < 500],
     ],
   },
   {

@@ -17,7 +17,9 @@ Manifest V3 Chrome extension that generates Reddit **and X (twitter)** marketing
 
 - **LLM:** NVIDIA OpenAI-compatible chat completions. Model `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`. `enable_thinking:false` via `chat_template_kwargs`, temp 0.6 / top_p 0.95. **No frequency/presence penalties — they make this nano model degenerate.** Key hardcoded in `popup.js` (personal use — rotate before sharing; extractable from bundle).
 - **Modes:** post (topic/product), reply (the comment), **x** (x-kind = reply-to-tweet or post-from-idea). Reddit reply defaults to genuine no-promo; promo opt-in (`#comment-promo`). X-post reuses the product textarea (as idea brief); X-reply reuses the comment textarea (as the tweet).
+- **Karma mode** (`cfg.karma`, `#karma` toggle): the headline feature. Flips the whole tool to upvote/like-first, ZERO promo, no product — overrides all promo routing in `buildMessages`. Dedicated `KARMA_*` prompts for reddit post/reply + X post/reply. UI hides style/hook/stealth/promo controls and relabels the input to "your take/story/question (no product)". Reddit posts still emit a TITLE.
 - **Post styles:** `story` (uses few-shot example), `hottake`, `question`, `update` (these 3 DROP the few-shot and ground on the user's actual input).
+- **Title retry:** reddit posts must emit a `TITLE:` line; the story style sometimes merges it into the body, so `expectsTitle(cfg)` makes the popup/eval retry when the title is missing.
 - **Anti-hallucination:** `GROUNDING` block is prepended to EVERY system prompt ("only use facts the user gave; never invent; never reuse the example's AEO/vps/$5/etc"). The few-shot is explicitly framed "STYLE EXAMPLE ONLY". This killed the AEO-template-copy bug.
 - **Garbage guard:** the model intermittently spirals into CJK soup / repetition loops. `SPW.looksDegenerate()` detects it (non-ascii ratio, unique-word ratio, repeated 3-grams); popup retries up to 3× before showing it.
 - **Reply tones:** neutral / supportive / professional / darkhumor / disagree / ragebait (apply to reddit replies + X replies).
@@ -33,7 +35,7 @@ Manifest V3 Chrome extension that generates Reddit **and X (twitter)** marketing
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **reddit-story-teller-business** (128 symbols, 236 relationships, 11 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **reddit-story-teller-business** (130 symbols, 239 relationships, 11 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

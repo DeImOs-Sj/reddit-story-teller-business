@@ -23,6 +23,8 @@ const el = {
   styleField: $("style-field"),
   stealth: $("stealth"),
   stealthWrap: $("stealth-wrap"),
+  karma: $("karma"),
+  karmaWrap: $("karma-wrap"),
   length: $("length"),
   generate: $("generate"),
   genLabel: $("generate").querySelector(".btn-label"),
@@ -48,7 +50,7 @@ let statusTimer = null;
 
 const PERSIST_KEYS = [
   "product", "comment", "hook", "postStyle", "stealth", "commentPromo",
-  "tone", "xKind", "length", "speed", "mode", "result",
+  "tone", "xKind", "length", "speed", "mode", "result", "karma",
 ];
 
 function persist() {
@@ -65,6 +67,7 @@ function persist() {
     speed: el.speed.value,
     mode: state.mode,
     result: state.result,
+    karma: el.karma.checked,
   });
 }
 
@@ -76,6 +79,7 @@ function restore() {
     if (r.postStyle) el.postStyle.value = r.postStyle;
     el.stealth.checked = r.stealth ?? true;
     el.commentPromo.checked = r.commentPromo ?? false;
+    el.karma.checked = r.karma ?? false;
     if (r.tone) el.tone.value = r.tone;
     if (r.xKind) el.xKind.value = r.xKind;
     if (r.length) el.length.value = r.length;
@@ -135,6 +139,7 @@ function gatherCfg() {
     commentPromo: el.commentPromo.checked,
     xKind: el.xKind.value,
     length: el.length.value,
+    karma: el.karma.checked,
   };
 }
 
@@ -149,23 +154,32 @@ const STYLE_LABELS = {
 function renderMode() {
   el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.mode === state.mode));
   const style = el.postStyle.value;
+  const karma = el.karma.checked;
 
   // which big input is showing
   el.postInputField.hidden = !(isPost() || xPost());
   el.commentInputField.hidden = !(isComment() || xReply());
 
-  // mode-specific controls
+  // x-kind always relevant in x mode
   el.xKindField.hidden = !isX();
-  el.styleField.hidden = !isPost();
+  // tone applies to any reply (karma or not)
   el.toneField.hidden = !(isComment() || xReply());
-  el.hookField.hidden = !((isPost() && style === "story") || (isComment() && el.commentPromo.checked));
-  el.commentPromoWrap.hidden = !isComment();
-  // stealth only matters when promoting on reddit
-  el.stealthWrap.hidden = !(isPost() || (isComment() && el.commentPromo.checked));
+  el.length.parentElement.hidden = false;
+
+  // karma mode hides ALL promo machinery — it's pure value, no selling
+  el.styleField.hidden = karma || !isPost();
+  el.hookField.hidden = karma || !((isPost() && style === "story") || (isComment() && el.commentPromo.checked));
+  el.commentPromoWrap.hidden = karma || !isComment();
+  el.stealthWrap.hidden = karma || !(isPost() || (isComment() && el.commentPromo.checked));
 
   // labels
-  if (isPost()) el.productLabel.textContent = STYLE_LABELS[style] || STYLE_LABELS.story;
-  else if (xPost()) el.productLabel.textContent = "your idea brief";
+  if (isPost()) {
+    el.productLabel.textContent = karma
+      ? "what's on your mind — your take, story, or question (no product)"
+      : (STYLE_LABELS[style] || STYLE_LABELS.story);
+  } else if (xPost()) {
+    el.productLabel.textContent = karma ? "your topic / thought (no product)" : "your idea brief";
+  }
 
   el.commentLabel.textContent = xReply()
     ? "the tweet / comment you're replying to"
@@ -200,7 +214,7 @@ function validate() {
   if (isPost() && !el.product.value.trim()) return ["fill in the topic / product field first", el.product];
   if (xPost() && !el.product.value.trim()) return ["write your idea brief first", el.product];
   if (isComment() && !el.comment.value.trim()) return ["paste the comment you're replying to", el.comment];
-  if (isComment() && el.commentPromo.checked && !el.product.value.trim())
+  if (isComment() && !el.karma.checked && el.commentPromo.checked && !el.product.value.trim())
     return ["promo is on — fill in your product/context, or turn it off", el.product];
   if (xReply() && !el.comment.value.trim()) return ["paste the tweet you're replying to", el.comment];
   return null;
@@ -243,7 +257,9 @@ async function generate() {
 
       const data = await res.json();
       text = SPW.clean(data?.choices?.[0]?.message?.content || "");
-      if (text && !SPW.looksDegenerate(text)) break; // good output
+      // good output = non-empty, not garbage, and (for posts) actually has a title
+      const titleOk = !SPW.expectsTitle(cfg) || !!SPW.parseOutput(text).title;
+      if (text && !SPW.looksDegenerate(text) && titleOk) break;
       if (attempt === MAX_TRIES && !text) throw new Error("empty response from model");
     }
 
@@ -328,6 +344,7 @@ el.tabs.forEach((t) =>
   })
 );
 
+el.karma.addEventListener("change", () => { renderMode(); persist(); });
 el.commentPromo.addEventListener("change", () => { renderMode(); persist(); });
 el.postStyle.addEventListener("change", () => { renderMode(); persist(); });
 el.xKind.addEventListener("change", () => { renderMode(); persist(); });
