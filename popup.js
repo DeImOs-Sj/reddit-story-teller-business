@@ -11,6 +11,12 @@ const el = {
   comment: $("comment"),
   commentLabel: $("comment-label"),
   commentInputField: $("comment-input-field"),
+  postctx: $("postctx"),
+  postctxLabel: $("postctx-label"),
+  postctxField: $("postctx-field"),
+  guidance: $("guidance"),
+  guidanceField: $("guidance-field"),
+  expand: $("expand"),
   commentPromo: $("comment-promo"),
   commentPromoWrap: $("comment-promo-wrap"),
   xKind: $("x-kind"),
@@ -49,7 +55,7 @@ let abortCtrl = null;
 let statusTimer = null;
 
 const PERSIST_KEYS = [
-  "product", "comment", "hook", "postStyle", "stealth", "commentPromo",
+  "product", "comment", "postctx", "guidance", "hook", "postStyle", "stealth", "commentPromo",
   "tone", "xKind", "length", "speed", "mode", "result", "karma",
 ];
 
@@ -57,6 +63,8 @@ function persist() {
   chrome.storage.local.set({
     product: el.product.value,
     comment: el.comment.value,
+    postctx: el.postctx.value,
+    guidance: el.guidance.value,
     hook: el.hook.value,
     postStyle: el.postStyle.value,
     stealth: el.stealth.checked,
@@ -75,6 +83,8 @@ function restore() {
   chrome.storage.local.get(PERSIST_KEYS, (r) => {
     if (r.product) el.product.value = r.product;
     if (r.comment) el.comment.value = r.comment;
+    if (r.postctx) el.postctx.value = r.postctx;
+    if (r.guidance) el.guidance.value = r.guidance;
     if (r.hook) el.hook.value = r.hook;
     if (r.postStyle) el.postStyle.value = r.postStyle;
     el.stealth.checked = r.stealth ?? true;
@@ -89,6 +99,8 @@ function restore() {
     el.speedVal.textContent = el.speed.value;
     autoGrow(el.product);
     autoGrow(el.comment);
+    autoGrow(el.postctx);
+    autoGrow(el.guidance);
     renderMode();
     renderResult();
   });
@@ -130,6 +142,8 @@ function gatherCfg() {
     mode: state.mode,
     product: el.product.value.trim(),
     comment: el.comment.value.trim(),
+    postContext: el.postctx.value.trim(),
+    guidance: el.guidance.value.trim(),
     idea: el.product.value.trim(),   // x-post reuses the product box
     tweet: el.comment.value.trim(),  // x-reply reuses the comment box
     postStyle: el.postStyle.value,
@@ -164,6 +178,12 @@ function renderMode() {
   el.xKindField.hidden = !isX();
   // tone applies to any reply (karma or not)
   el.toneField.hidden = !(isComment() || xReply());
+  // post-context + your-suggestions boxes: any reply (reddit comment or x reply), karma or not
+  el.postctxField.hidden = !(isComment() || xReply());
+  el.guidanceField.hidden = !(isComment() || xReply());
+  el.postctxLabel.textContent = xReply()
+    ? "the original tweet / thread — for context (optional)"
+    : "the original post / thread — for context (optional)";
   el.length.parentElement.hidden = false;
 
   // karma mode hides ALL promo machinery — it's pure value, no selling
@@ -353,9 +373,14 @@ el.stealth.addEventListener("change", persist);
 el.tone.addEventListener("change", persist);
 el.length.addEventListener("change", persist);
 
-[el.product, el.comment].forEach((t) =>
+[el.product, el.comment, el.postctx, el.guidance].forEach((t) =>
   t.addEventListener("input", () => { autoGrow(t); persist(); })
 );
+
+// open the popup as a full browser tab (popups are capped small by chrome)
+el.expand.addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?tab=1") });
+});
 
 el.speed.addEventListener("input", () => {
   el.speedVal.textContent = el.speed.value;
@@ -374,5 +399,11 @@ document.addEventListener("keydown", (e) => {
     generate();
   }
 });
+
+// when launched in a real tab (?tab=1), go wide instead of the 400px popup bubble
+if (new URLSearchParams(location.search).get("tab")) {
+  document.body.classList.add("in-tab");
+  el.expand.hidden = true;
+}
 
 restore();

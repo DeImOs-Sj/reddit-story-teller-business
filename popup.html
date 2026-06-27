@@ -17,6 +17,7 @@
       <button class="tab" data-mode="comment" role="tab">reply</button>
       <button class="tab" data-mode="x" role="tab">x</button>
     </div>
+    <button id="expand" class="icon-btn" title="open in a full tab">⛶</button>
   </header>
 
   <main>
@@ -34,10 +35,22 @@
       <textarea id="product" rows="3" placeholder="e.g. a cheap diy tool that does X for $5 instead of the $50/mo others charge"></textarea>
     </div>
 
+    <!-- original post/thread context (reply mode + x-reply) — optional background -->
+    <div class="field" id="postctx-field" hidden>
+      <div class="field-label"><span id="postctx-label">the original post / thread <em class="muted">— for context (optional)</em></span></div>
+      <textarea id="postctx" rows="3" placeholder="paste the original post (title + body) the comment is under — leave empty to reply to the comment alone"></textarea>
+    </div>
+
     <!-- comment / tweet input (reply mode + x-reply) -->
     <div class="field" id="comment-input-field" hidden>
       <div class="field-label"><span id="comment-label">the comment you're replying to</span></div>
       <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
+    </div>
+
+    <!-- your steer for a reply (reply mode + x-reply) -->
+    <div class="field" id="guidance-field" hidden>
+      <div class="field-label"><span>your suggestions <em class="muted">— how to reply (optional)</em></span></div>
+      <textarea id="guidance" rows="2" placeholder="e.g. agree but push back on X, keep it skeptical, ask about their setup, mention i hit the same bug"></textarea>
     </div>
 
     <!-- x: reply vs post-from-idea -->

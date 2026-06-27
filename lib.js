@@ -218,6 +218,18 @@ OUTPUT: just the tweet text as plain prose. no title, no quotes, no labels.`;
     const tone = TONE_INSTRUCTIONS[cfg.tone] || "";
     const toneLine = tone ? `\n\n${tone}` : "";
     const lenLine = `\n\n${lengthFor(cfg.length).line}`;
+    // user's own steer for a reply — highest-priority shaping, still grounded.
+    const guidance = (cfg.guidance || "").trim();
+    const guideLine = guidance
+      ? `\n\nMY GUIDANCE — follow this above all else when shaping the reply (but stay grounded; don't invent facts i didn't give): ${guidance}`
+      : "";
+    // the original post/thread/tweet the comment lives under — BACKGROUND only.
+    // reply still targets the comment; this just lets the model fit the thread.
+    const postContext = (cfg.postContext || "").trim();
+    const ctxBlock = postContext
+      ? `\n\nthe original post / thread this is under (BACKGROUND — read it so your reply fits the discussion, but you are replying to the COMMENT below, NOT to the post):
+"""${postContext}"""`
+      : "";
     const topic = product || idea; // karma reuses the same big input box
 
     // ----- KARMA MODE: overrides all promo routing -----
@@ -226,7 +238,7 @@ OUTPUT: just the tweet text as plain prose. no title, no quotes, no labels.`;
       if (cfg.mode === "comment") {
         return [
           { role: "system", content: KARMA_REPLY_PROMPT },
-          { role: "user", content: `write an upvote-worthy reddit reply to this comment.${toneLine}${lenLine}
+          { role: "user", content: `write an upvote-worthy reddit reply to this comment.${toneLine}${guideLine}${lenLine}${ctxBlock}
 
 the comment:
 """${comment}"""` },
@@ -236,7 +248,7 @@ the comment:
       if (cfg.mode === "x" && cfg.xKind === "reply") {
         return [
           { role: "system", content: KARMA_X_REPLY_PROMPT },
-          { role: "user", content: `write a reply to this tweet that earns likes.${toneLine}${lenLine}
+          { role: "user", content: `write a reply to this tweet that earns likes.${toneLine}${guideLine}${lenLine}${ctxBlock}
 
 the tweet:
 """${tweet}"""` },
@@ -276,7 +288,7 @@ my idea brief:
       // default x = reply
       return [
         { role: "system", content: X_REPLY_PROMPT },
-        { role: "user", content: `reply to this tweet.${toneLine}${lenLine}
+        { role: "user", content: `reply to this tweet.${toneLine}${guideLine}${lenLine}${ctxBlock}
 
 the tweet i'm replying to:
 """${tweet}"""` },
@@ -287,7 +299,7 @@ the tweet i'm replying to:
     if (cfg.mode === "comment" && !cfg.commentPromo) {
       return [
         { role: "system", content: REPLY_PROMPT },
-        { role: "user", content: `reply to this reddit comment in a genuine casual human voice. just react, no promotion, no product, no links.${toneLine}${lenLine}
+        { role: "user", content: `reply to this reddit comment in a genuine casual human voice. just react, no promotion, no product, no links.${toneLine}${guideLine}${lenLine}${ctxBlock}
 
 the comment i'm replying to:
 """${comment}"""` },
@@ -300,7 +312,7 @@ the comment i'm replying to:
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: FEWSHOT_USER },
         { role: "assistant", content: FEWSHOT_ASSISTANT },
-        { role: "user", content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in MY story (below), not the example's. ${hook}${stealth}${toneLine}${lenLine}
+        { role: "user", content: `i'm replying to a comment in a thread. reply in the storytelling hook style, weaving in MY story (below), not the example's. ${hook}${stealth}${toneLine}${guideLine}${lenLine}${ctxBlock}
 
 the comment i'm replying to:
 """${comment}"""

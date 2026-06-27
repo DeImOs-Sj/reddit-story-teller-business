@@ -112,6 +112,29 @@ test("tone overlay is injected for replies", () => {
   assert.match(lastUser(msgs), /spicy and provocative/i);
 });
 
+test("user guidance is injected into replies but absent when empty", () => {
+  const withG = SPW.buildMessages({ mode: "comment", comment: "c", guidance: "push back hard on their point" });
+  const without = SPW.buildMessages({ mode: "comment", comment: "c" });
+  assert.match(lastUser(withG), /MY GUIDANCE/i);
+  assert.match(lastUser(withG), /push back hard on their point/);
+  assert.doesNotMatch(lastUser(without), /MY GUIDANCE/i);
+  // x reply + karma reply carry it too
+  assert.match(lastUser(SPW.buildMessages({ mode: "x", xKind: "reply", tweet: "t", guidance: "be witty" })), /MY GUIDANCE/i);
+  assert.match(lastUser(SPW.buildMessages({ mode: "comment", karma: true, comment: "c", guidance: "agree warmly" })), /MY GUIDANCE/i);
+});
+
+test("post context is injected as background but absent when empty", () => {
+  const withCtx = SPW.buildMessages({ mode: "comment", comment: "this comment", postContext: "OP: my site only gets 12 visits" });
+  const without = SPW.buildMessages({ mode: "comment", comment: "this comment" });
+  assert.match(lastUser(withCtx), /BACKGROUND/);
+  assert.match(lastUser(withCtx), /my site only gets 12 visits/);
+  assert.match(lastUser(withCtx), /this comment/); // still targets the comment
+  assert.doesNotMatch(lastUser(without), /BACKGROUND/);
+  // x reply + karma reply carry it too
+  assert.match(lastUser(SPW.buildMessages({ mode: "x", xKind: "reply", tweet: "t", postContext: "orig tweet" })), /BACKGROUND/);
+  assert.match(lastUser(SPW.buildMessages({ mode: "comment", karma: true, comment: "c", postContext: "orig post" })), /BACKGROUND/);
+});
+
 test("stealth rules only appear when stealth is on", () => {
   const on = SPW.buildMessages({ mode: "post", postStyle: "story", product: "p", stealth: true });
   const off = SPW.buildMessages({ mode: "post", postStyle: "story", product: "p", stealth: false });

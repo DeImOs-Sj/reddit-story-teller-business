@@ -27,6 +27,11 @@ body {
   line-height: 1.45;
 }
 
+/* full-tab mode: popup.html?tab=1 — break out of the 400px popup bubble */
+body.in-tab { width: 100%; min-height: 100vh; }
+body.in-tab main { max-width: 720px; margin: 0 auto; width: 100%; }
+body.in-tab .topbar { padding-left: max(14px, calc((100% - 720px) / 2)); padding-right: max(14px, calc((100% - 720px) / 2)); }
+
 /* ---------- topbar ---------- */
 .topbar {
   display: flex;
