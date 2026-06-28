@@ -25,8 +25,6 @@ const el = {
   toneField: $("tone-field"),
   hook: $("hook"),
   hookField: $("hook-field"),
-  postStyle: $("post-style"),
-  styleField: $("style-field"),
   stealth: $("stealth"),
   stealthWrap: $("stealth-wrap"),
   karma: $("karma"),
@@ -55,7 +53,7 @@ let abortCtrl = null;
 let statusTimer = null;
 
 const PERSIST_KEYS = [
-  "product", "comment", "postctx", "guidance", "hook", "postStyle", "stealth", "commentPromo",
+  "product", "comment", "postctx", "guidance", "hook", "stealth", "commentPromo",
   "tone", "xKind", "length", "speed", "mode", "result", "karma",
 ];
 
@@ -66,7 +64,6 @@ function persist() {
     postctx: el.postctx.value,
     guidance: el.guidance.value,
     hook: el.hook.value,
-    postStyle: el.postStyle.value,
     stealth: el.stealth.checked,
     commentPromo: el.commentPromo.checked,
     tone: el.tone.value,
@@ -86,7 +83,6 @@ function restore() {
     if (r.postctx) el.postctx.value = r.postctx;
     if (r.guidance) el.guidance.value = r.guidance;
     if (r.hook) el.hook.value = r.hook;
-    if (r.postStyle) el.postStyle.value = r.postStyle;
     el.stealth.checked = r.stealth ?? true;
     el.commentPromo.checked = r.commentPromo ?? false;
     el.karma.checked = r.karma ?? false;
@@ -146,7 +142,7 @@ function gatherCfg() {
     guidance: el.guidance.value.trim(),
     idea: el.product.value.trim(),   // x-post reuses the product box
     tweet: el.comment.value.trim(),  // x-reply reuses the comment box
-    postStyle: el.postStyle.value,
+    postStyle: "story",              // post-style picker removed; reddit posts are always story
     hook: el.hook.value,
     stealth: el.stealth.checked,
     tone: el.tone.value,
@@ -167,7 +163,7 @@ const STYLE_LABELS = {
 
 function renderMode() {
   el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.mode === state.mode));
-  const style = el.postStyle.value;
+  const style = "story"; // post-style picker removed; reddit posts are always story
   const karma = el.karma.checked;
 
   // which big input is showing
@@ -187,7 +183,6 @@ function renderMode() {
   el.length.parentElement.hidden = false;
 
   // karma mode hides ALL promo machinery — it's pure value, no selling
-  el.styleField.hidden = karma || !isPost();
   el.hookField.hidden = karma || !((isPost() && style === "story") || (isComment() && el.commentPromo.checked));
   el.commentPromoWrap.hidden = karma || !isComment();
   el.stealthWrap.hidden = karma || !(isPost() || (isComment() && el.commentPromo.checked));
@@ -201,9 +196,9 @@ function renderMode() {
     el.productLabel.textContent = karma ? "your topic / thought (no product)" : "your idea brief";
   }
 
-  el.commentLabel.textContent = xReply()
-    ? "the tweet / comment you're replying to"
-    : "the comment you're replying to";
+  el.commentLabel.innerHTML = xReply()
+    ? "the tweet / comment you're replying to <em class=\"muted\">— optional</em>"
+    : "the comment you're replying to <em class=\"muted\">— optional</em>";
 
   el.bodyLabel.textContent = isComment() || xReply() ? "reply" : "post";
 }
@@ -233,7 +228,9 @@ function renderResult() {
 function validate() {
   if (isPost() && !el.product.value.trim()) return ["fill in the topic / product field first", el.product];
   if (xPost() && !el.product.value.trim()) return ["write your idea brief first", el.product];
-  if (isComment() && !el.comment.value.trim()) return ["paste the comment you're replying to", el.comment];
+  // comment + post-context are both optional now; just need at least one signal to reply to
+  if (isComment() && !el.comment.value.trim() && !el.postctx.value.trim() && !el.guidance.value.trim())
+    return ["give me something to reply to — a comment, the post context, or your suggestions", el.comment];
   if (isComment() && !el.karma.checked && el.commentPromo.checked && !el.product.value.trim())
     return ["promo is on — fill in your product/context, or turn it off", el.product];
   if (xReply() && !el.comment.value.trim()) return ["paste the tweet you're replying to", el.comment];
@@ -366,7 +363,6 @@ el.tabs.forEach((t) =>
 
 el.karma.addEventListener("change", () => { renderMode(); persist(); });
 el.commentPromo.addEventListener("change", () => { renderMode(); persist(); });
-el.postStyle.addEventListener("change", () => { renderMode(); persist(); });
 el.xKind.addEventListener("change", () => { renderMode(); persist(); });
 el.hook.addEventListener("change", persist);
 el.stealth.addEventListener("change", persist);

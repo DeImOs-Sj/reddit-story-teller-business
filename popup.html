@@ -43,7 +43,7 @@
 
     <!-- comment / tweet input (reply mode + x-reply) -->
     <div class="field" id="comment-input-field" hidden>
-      <div class="field-label"><span id="comment-label">the comment you're replying to</span></div>
+      <div class="field-label"><span id="comment-label">the comment you're replying to <em class="muted">— optional</em></span></div>
       <textarea id="comment" rows="3" placeholder="paste the comment here"></textarea>
     </div>
 
@@ -59,17 +59,6 @@
       <select id="x-kind">
         <option value="reply">reply to a tweet / comment</option>
         <option value="post">write a post from an idea</option>
-      </select>
-    </div>
-
-    <!-- post style (post mode only) -->
-    <div class="field" id="style-field">
-      <div class="field-label"><span>post style</span></div>
-      <select id="post-style">
-        <option value="story">personal story + soft hook</option>
-        <option value="hottake">hot take / opinion</option>
-        <option value="question">ask the community</option>
-        <option value="update">build-in-public update</option>
       </select>
     </div>
 
